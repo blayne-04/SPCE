@@ -32,6 +32,10 @@ public:
 
 	/* --- PHYSICS & ACTIONS --- */
 	void applyKick(sf::Vector2f direction);
+	void applyPass();
+	void applyShot();
+
+	void update(const float deltaTiem);
 	
 	
 private:
