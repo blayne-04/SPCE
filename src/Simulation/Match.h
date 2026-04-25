@@ -34,11 +34,11 @@ private:
 
 	World mWorld;
 
-	int homeScore;
-	int awayScore;
+	int mHomeScore;
+	int mAwayScore;
 
-	float matchTimer;
-	bool isOverTimer;
+	float mMatchTimer;
+	bool mIsOverTimer;
 
 	unique_ptr<MatchState> currentState;
 
