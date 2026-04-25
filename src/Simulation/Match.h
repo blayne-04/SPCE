@@ -2,33 +2,37 @@
 
 #include "World.h"
 #include "States/MatchState.h"
-
-#include <memory>
+#include "../Common/Packets.h"
+#include "../Common/Types.h"
 
 class Match {
 
 public:
 
-	Match() = default;
+	Match() : homeScore(0), awayScore(0), matchTimer(0.0f), mCurrentState(nullptr)
+	{
+		mWorld = World();
+	}
 
+	~Match() = default;
+
+	/* Pass data from gameEngine all the way down the pipeline, delegate to state class */
 	void update(const FrameInput& frameData);
+	
+	/* Handle state transitions, called by state classes to transition to next state */
+	void TransitionTo(std::unique_ptr<MatchState> nextState);
 
-	void applyNetworkState(const GameStatePacket& packet);
+	/* Adjust score for specified team */
+	void incrementScore(TEAMS side);
+	void clearScore() { homeScore = 0; awayScore = 0; }
 
-	GameStatePacket exportNetworkState(unique32_t seqNum);
+	/* Timer helpers */
+	void incrementTimer() { matchTimer++; }
+	void clearTimer() { matchTimer = 0.0f; }
+	float getTimer() const { return matchTimer; }
 
-	void transitionTo(int stateID);
-
-	void incrementScore(int side);
-
-	setNextKickingSide(int side);
-
+	/* Returns reference to world, for state class to mutate and interface with */
 	World& getWorld() { return mWorld; }
-
-	int getCurrentStateID();
-
-
-
 
 private:
 
@@ -37,10 +41,12 @@ private:
 	int mHomeScore;
 	int mAwayScore;
 
+<<<<<<< HEAD
 	float mMatchTimer;
 	bool mIsOverTimer;
+=======
+	float matchTimer;
+>>>>>>> 568018f6c5728e5b4394680b5e9fea8a92c240eb
 
-	unique_ptr<MatchState> currentState;
-
-	int nextKickingSide;
+	std::unique_ptr<MatchState> mCurrentState;
 };
