@@ -30,7 +30,7 @@ file(GLOB_RECURSE GAME_SOURCES
 )
 
 # 4. Define the Target
-add_executable(${PROJECT_NAME} ${GAME_SOURCES})
+add_executable(${PROJECT_NAME} ${GAME_SOURCES} "src/Common/Types.h" "src/Common/Packets.h" "src/Core/GameEngine.h" "src/Core/Renderer.h" "src/Core/Renderer.cpp" "src/Network/NetworkManager.h" "src/Network/NetworkManager.cpp" "src/Input/InputHandler.h" "src/Input/InputHandler.cpp" "src/Input/AiController.h" "src/Input/AIController.cpp"  "src/Objects/Player.h" "src/Objects/Ball.h" "src/Objects/Goal.h" "src/Objects/Goal.cpp" "src/Simulation/Match.h" "src/Simulation/Match.cpp" "src/Simulation/World.h" "src/Simulation/World.cpp" "src/States/MatchState.h" "src/States/KickoffState.h" "src/States/KickoffState.cpp" "src/States/PlayingState.h" "src/States/PlayingState.cpp" "src/States/GameOverState.h" "src/States/GameOverState.cpp")
 
 # 5. The "EE-Approved" Include Strategy
 # This allows you to #include "Common/Types.h" instead of "../Common/Types.h"
@@ -53,16 +53,6 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/assets"
         "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
-    )
-endif()
-
-# 8. Windows Deployment: Copy DLLs
-if(WIN32)
-    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_RUNTIME_DLLS:${PROJECT_NAME}>
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>
-        COMMAND_EXPAND_LISTS
     )
 endif()
 
