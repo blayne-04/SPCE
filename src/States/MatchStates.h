@@ -4,6 +4,9 @@
 /* Forward declaration to avoid circular dependency */
 class Match;
 
+/* ========================================= */
+/*              BASE CLASS                   */
+/* ========================================= */
 class MatchState {
 public:
     MatchState() = default;
