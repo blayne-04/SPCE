@@ -1,38 +1,10 @@
 #pragma once
 
-#include "SFML/Network.hpp"
+#include <SFML/Network.hpp>
+#include "../Common/Packets.h"
+#include <queue>
 
 using uint16 = unsigned short;
-
-
-struct GameStatePacket {
-	uint32_t sequenceNumber;
-	float ballPosX;
-	float ballPosY;
-	float ballVelX;
-	float ballVelY;
-	int ballOwnerSlot;
-	float playerPos[16];
-	unsigned int homeScore;
-	unsigned int awayScore;
-	float matchTime;
-	bool isOverTime;
-	int stateID;
-};
-
-
-
-struct InputPacket {
-	uint8_t slotID;
-	sf::Vector2f moveDirection;
-	bool passPressed;
-	bool shootPressed;
-	bool tackePressed;
-	bool switchPlayerPressed;
-};
-
-
-
 
 class NetworkManager {
 
@@ -62,7 +34,5 @@ private:
 	sf::IpAddress mRemoteAddress;
 
 	uint16 mRemotePort;
-
-
 
 };
