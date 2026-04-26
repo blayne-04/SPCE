@@ -1,21 +1,36 @@
 #include <SFML/Graphics.hpp>
+#include "Test.h"
+#include "Core/GameEngine.h"
+#include <iostream>
 
 int main()
 {
-	sf::RenderWindow window( sf::VideoMode( { 200, 200 } ), "SFML works!" );
-	sf::CircleShape shape( 100.f );
-	shape.setFillColor( sf::Color::Green );
+    std::cout << "===================================" << std::endl;
+    std::cout << "   SPCE - Starting Up...          " << std::endl;
+    std::cout << "===================================" << std::endl;
 
-	while ( window.isOpen() )
-	{
-		while ( const std::optional event = window.pollEvent() )
-		{
-			if ( event->is<sf::Event::Closed>() )
-				window.close();
-		}
+#ifdef _DEBUG
+    // Run tests only in debug mode
+    try {
+        Test::testEngineStateMachine();
+        Test::testMatchStateMachine();
+        std::cout << "\n=== All Tests PASSED ===" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Test failed: " << e.what() << std::endl;
+        return 1;
+    }
+#endif
 
-		window.clear();
-		window.draw( shape );
-		window.display();
-	}
+    // Start the game directly (no waiting for input)
+    std::cout << "\nStarting game window..." << std::endl;
+    
+    try {
+        GameEngine engine;
+        engine.run();
+    } catch (const std::exception& e) {
+        std::cerr << "Game error: " << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;   
 }

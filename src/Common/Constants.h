@@ -1,5 +1,6 @@
 #pragma once
-#include <SFML/Graphics.hpp>
+
+#include <SFML/Network.hpp>
 
 namespace Config {
 	constexpr unsigned int WINDOW_WIDTH = 800;
@@ -143,4 +144,4 @@ namespace Config {
 	constexpr float PASS_CONTROL_SWITCH_TIMEOUT_SECONDS = 1.25f;
 	constexpr float PASS_TARGET_ALIGNMENT_MIN = 0.2f;
 
-	constexpr const char* FONT_PATH = "assets/fonts/arial.ttf";
+	constexpr const char* FONT_PATH = "../assets/fonts/arial.ttf";
