@@ -4,9 +4,11 @@
 
 #include <queue>
 
-#include "Match.h"
-#include "Renderer.h"
-#include "NetworkManager.h"
+#include "Simulation/Match.h"
+#include "Core/Renderer.h"
+#include "Network/NetworkManager.h"
+#include "Input/InputHandler.h"
+#include "Input/AIController.h"
 
 
 enum class OperationMode {
