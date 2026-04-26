@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SFML/Graphics.hpp"
-#include "./Common/Constants.h"
+#include "../Common/Constants.h"
 
 class Ball : public sf::CircleShape
 {

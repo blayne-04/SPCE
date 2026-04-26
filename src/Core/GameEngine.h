@@ -3,14 +3,13 @@
 #include <vector>
 #include <memory>
 
-/* Forward Declaration */
 class EngineState;
 
 class GameEngine {
 public:
     GameEngine();
     ~GameEngine();
-    
+
     void run();
 
     /* State transition stack helpers, i.e. when you pause, push to top of stack, pop when exiting pause and you're back in the game */

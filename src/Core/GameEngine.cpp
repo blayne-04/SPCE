@@ -1,53 +1,60 @@
 #include "GameEngine.h"
+#include "../States/EngineState.h"
+
+GameEngine::GameEngine() 
+    : mWindow(sf::VideoMode({1280, 720}), "Super Copa Peru Evolution") {
+    mWindow.setFramerateLimit(60);
+    pushState(std::make_unique<StartMenuState>());
+}
+
+GameEngine::~GameEngine() = default;
 
 void GameEngine::pushState(std::unique_ptr<EngineState> state) {
     mStates.push_back(std::move(state));
-    mStates.back()->onEnter();
 }
 
 void GameEngine::popState() {
     if (!mStates.empty()) {
-        mStates.back()->onExit();
         mStates.pop_back();
     }
 }
 
-void GameEngine::transitionTo(std::unique_ptr<EngineState> state)
-{
-    popState();
-    pushState(std::move(state));
+void GameEngine::transitionTo(std::unique_ptr<EngineState> state) {
+    if (!mStates.empty()) {
+        mStates.pop_back();
+    }
+    mStates.push_back(std::move(state));
 }
 
 void GameEngine::processOsEvents() {
-
+    while (const std::optional<sf::Event> event = mWindow.pollEvent()) {
+        if (event->is<sf::Event::Closed>()) {
+            mWindow.close();
+        }
+        
+        if (!mStates.empty()) {
+            sf::Event mutableEvent = *event;
+            mStates.back()->handleInput(*this, mutableEvent);
+        }
+    }
 }
 
 void GameEngine::run() {
-    mWindow.create(sf::VideoMode(Confi::WINDOW_SIZE), "Super Copa Peru Evolution");
-    mWindow.setFramerateLimit(60);
-
-    /* Source of truth for clock */
     sf::Clock clock;
 
-    while (mWindow.isOpen()) {
-        sf::Time deltaTime = clock.restart();
+    while (mWindow.isOpen() && !mStates.empty()) {
+        float dt = clock.restart().asSeconds();
         
-        /* Process OS Events */
         processOsEvents();
 
-        /* Check if state is initialized, it should be startMenu */
-        if (mStates.empty()) break;
-           
-        /* The state on top of the stack receives a deltaTime, and a ptr to the GameEngine for state mutation */
-        mStates.back()->update(*this, deltaTime.asSeconds());
+        if (!mStates.empty()) {
+            mStates.back()->update(*this, dt);
+        }
 
-        /* Clear window and render the entire stack Credit: Gemini, Prompt: How do I render an entire stack of states in C++ */
         mWindow.clear();
-        
         for (auto& state : mStates) {
             state->render(mWindow);
         }
-
         mWindow.display();
     }
 }
