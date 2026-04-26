@@ -4,6 +4,7 @@
 #include "../States/MatchStates.h"
 #include "../Common/Packets.h"
 #include "../Common/Types.h"
+#include <memory>
 
 
 class Match {

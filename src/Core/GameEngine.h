@@ -1,54 +1,29 @@
 #pragma once
+#include <SFML/Graphics.hpp>
+#include <vector>
+#include <memory>
 
-#include "SFML/Graphics.hpp"
-
-#include <queue>
-
-#include "Simulation/Match.h"
-#include "Core/Renderer.h"
-#include "Network/NetworkManager.h"
-#include "Input/InputHandler.h"
-#include "Input/AIController.h"
-
-
-enum class OperationMode {
-	SINGLE_PLAYER,
-	HOST,
-	CLIENT
-};
-
+/* Forward Declaration */
+class EngineState;
 
 class GameEngine {
-
 public:
+    GameEngine();
+    ~GameEngine();
+    
+    void run();
 
-	GameEngine(OperationMode initMode);
+    /* State transition stack helpers, i.e. when you pause, push to top of stack, pop when exiting pause and you're back in the game */
+    void pushState(std::unique_ptr<EngineState> state);
+    void popState();
+    void transitionTo(std::unique_ptr<EngineState> state);
 
-	// runs the program, should be called after the constructor
-	void run();
+    sf::RenderWindow& getWindow() { return mWindow; }
 
 private:
+    sf::RenderWindow mWindow;
+    std::vector<std::unique_ptr<EngineState>> mStates;
 
-	// class attributes
-
-	sf::RenderWindow mWindow;
-
-	OperationMode mOperationMode;
-
-	Match mMatch;
-	Renderer mRenderer;
-	NetworkManager mNetworkManager;
-	InputHandler mInputHandler;
-	AIController mAIController;
-
-	std::queue<InputPacket> clientQueues;
-
-
-	// private functions for the different loops
-
-	void runHostLoop();
-	void runClientLoop();
-	bool processWindoeEvents();
-
-
+    /* Handle OS Events e.g. (Maximize window, Minimize window, Close Window) */
+    void processOsEvents();
 };
