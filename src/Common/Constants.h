@@ -1,6 +1,8 @@
 #pragma once
 
-#include <SFML/Network.hpp>
+// SANTI: Fixed includes.
+#include<SFML/System/Vector2.hpp>
+#include<SFML/Window/Keyboard.hpp>
 
 namespace Config {
 	constexpr unsigned int WINDOW_WIDTH = 800;
@@ -145,3 +147,11 @@ namespace Config {
 	constexpr float PASS_TARGET_ALIGNMENT_MIN = 0.2f;
 
 	constexpr const char* FONT_PATH = "../assets/fonts/arial.ttf";
+
+	// SANTI just added HOST PORT	
+	// Networking (shared defaults)
+	// One place to change the port for host + client.
+	constexpr unsigned short HOST_PORT = 54000;
+
+
+}

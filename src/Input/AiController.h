@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 // SANTI: Removed all includes except Packets.h (no Match.h, no NetworkManager.h).
 #include "../Common/Packets.h"
@@ -15,7 +15,7 @@ class AIController {
 public:
 	// SANTI: Removed default constructor (compiler-generated is sufficient).
 
-	// SANTI: Changed signature – takes uint8_t playerID and const reference to
+	// SANTI: Changed signature - takes uint8_t playerID and const reference to
 	// GameStatePacket. The AI uses the snapshot to decide movement and actions.
 	InputPacket getAIInput(std::uint8_t playerID, const GameStatePacket& gameStatePacket);
 };
@@ -28,3 +28,4 @@ public:
   - Every UDP datagram starts with uint8 msgType (NetMsg::INPUT or NetMsg::STATE) before
 	the payload, and you branch on it when receiving.
 */
+

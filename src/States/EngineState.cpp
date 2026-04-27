@@ -10,10 +10,27 @@
 
 void StartMenuState::handleInput(GameEngine& engine, sf::Event& event) {
 	// TODO: Implement input handling for start menu
+
+	// SANTI - TEST - DELETE AFTER
+	const auto* key = event.getIf<sf::Event::KeyPressed>();
+	if (!key) return;
+
+	if (key->code == sf::Keyboard::Key::H) {
+		engine.transitionTo(std::make_unique<HostPlayingState>());
+		return;
+	}
+	if (key->code == sf::Keyboard::Key::C) {
+		engine.transitionTo(std::make_unique<ClientPlayingState>());
+		return;
+	}
+
+
 }
 
 void StartMenuState::update(GameEngine& engine, float dt) {
 	// TODO: Implement update logic for start menu
+
+
 }
 
 void StartMenuState::render(sf::RenderWindow& window) {
@@ -67,6 +84,20 @@ void PauseMenuState::render(sf::RenderWindow& window) {
 /* ========================================= */
 /*            CLIENT PLAY                    */
 /* ========================================= */
+
+ClientPlayingState::ClientPlayingState()
+{
+
+
+	mNetwork.startClient(sf::IpAddress::LocalHost, Config::HOST_PORT);
+
+	// Before first STATE arrives, we have no controlledAwayPlayerId yet.
+	mHaveState = false;
+	mLastState = GameStatePacket{};
+	mNextInputSequence = 0;
+}
+
+
 void ClientPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
 	if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
 		if (keyPressed->code == sf::Keyboard::Key::P) {
@@ -75,7 +106,42 @@ void ClientPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
 	}
 }
 
-void ClientPlayingState::update(GameEngine& engine, float dt) {}
+void ClientPlayingState::update(GameEngine& engine, float dt) {
+	constexpr std::uint8_t kFallbackAwayPlayerId = 4;
+
+	const std::uint8_t playerId =
+		mHaveState ? mLastState.controlledAwayPlayerId : kFallbackAwayPlayerId;
+
+	InputPacket input{};
+
+	if (!mHaveState) {
+		// Handshake: send a neutral INPUT so the host learns our (ip, port).
+		input.playerId = playerId;
+		input.moveDirection = sf::Vector2f(0.f, 0.f);
+		input.shootDown = false;
+		input.passDown = false;
+		input.tackleDown = false;
+		input.switchDown = false;
+		input.lungeDown = false;
+	}
+	else {
+		// Normal: send real keyboard DOWN-state.
+		input = mInput.getLocalInput(playerId);
+	}
+
+
+	// Always stamp routing + sequencing last so it's consistent.
+	input.playerId = playerId;
+	input.inputSequence = mNextInputSequence++;
+
+	mNetwork.sendPlayerInput(input);
+
+	if (mNetwork.receiveLatestGameState(mLastState)) {
+		mHaveState = true;
+	}
+
+
+}
 
 void ClientPlayingState::render(sf::RenderWindow& window) {
 	// Draw game - DO NOT call window.clear()
@@ -87,6 +153,14 @@ void ClientPlayingState::render(sf::RenderWindow& window) {
 /* ========================================= */
 /*                HOST PLAY                  */
 /* ========================================= */
+
+HostPlayingState::HostPlayingState()
+{
+	mNetwork.startHost(Config::HOST_PORT);
+	mFrame = 0;
+}
+
+
 void HostPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
 	if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
 		if (keyPressed->code == sf::Keyboard::Key::P) {
@@ -95,7 +169,27 @@ void HostPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
 	}
 }
 
-void HostPlayingState::update(GameEngine& engine, float dt) {}
+void HostPlayingState::update(GameEngine& engine, float dt) {
+
+	std::queue<InputPacket> incoming;
+	mNetwork.pollIncomingInputs(incoming); // learns client ip:port on first INPUT
+
+	GameStatePacket state{};
+	state.frameNumber = mFrame++;
+
+	// Important for your decision: keep pitchBounds populated.
+
+	state.pitchBounds = sf::FloatRect(
+		sf::Vector2f(0.f, 0.f),
+		sf::Vector2f(
+			static_cast<float>(Config::WINDOW_WIDTH),
+			static_cast<float>(Config::WINDOW_HEIGHT)
+		)
+	);
+	mNetwork.sendGameState(state); // does nothing until a client INPUT arrives
+
+
+}
 
 void HostPlayingState::render(sf::RenderWindow& window) {
 	// Draw game - DO NOT call window.clear()
