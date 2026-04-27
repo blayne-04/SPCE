@@ -132,7 +132,7 @@ namespace Config {
 	inline constexpr sf::Keyboard::Key MOVE_LEFT_KEY = sf::Keyboard::Key::A;
 	inline constexpr sf::Keyboard::Key MOVE_RIGHT_KEY = sf::Keyboard::Key::D;
 
-	// Right hand (actions) – JKL cluster
+	// Right hand (actions) - JKL cluster
 	inline constexpr sf::Keyboard::Key SHOOT_KEY = sf::Keyboard::Key::K;           // primary shot
 	inline constexpr sf::Keyboard::Key PASS_KEY = sf::Keyboard::Key::J;            // short pass
 	inline constexpr sf::Keyboard::Key TACKLE_KEY = sf::Keyboard::Key::L;          // standing tackle

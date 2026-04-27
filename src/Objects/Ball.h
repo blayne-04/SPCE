@@ -5,12 +5,13 @@
 
 class Ball : public sf::CircleShape
 {
-public:	
+public:
 	/* Defaults: mOwnerID : -1, mStealCooldown : 0, Radius : 0.5f, Color : White */
 	Ball() : mOwnerID(-1), mStealCooldown(0.f) {
-		setRadius(BALL_RADIUS);
+		// SANTI: Changed BALL_RADIUS to Config::BALL_RADIUS
+		setRadius(Config::BALL_RADIUS);
 		setFillColor(sf::Color::White);
-		setOrigin(sf::Vector2f(getRadius(),getRadius()));
+		setOrigin(sf::Vector2f(getRadius(), getRadius()));
 	}
 
 	~Ball() = default;
@@ -36,8 +37,8 @@ public:
 	void applyShot();
 
 	void update(const float deltaTiem);
-	
-	
+
+
 private:
 	float mStealCooldown;
 	int mOwnerID;

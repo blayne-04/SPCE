@@ -17,7 +17,7 @@
 //
 // Input reliability rule (important for UDP):
 // - Send button DOWN state each tick (shootDown/passDown/etc).
-// - Host computes "pressed this frame" by comparing with last tick’s input.
+// - Host computes "pressed this frame" by comparing with last tick's input.
 // ============================================================================
 
 // SANTI: changed from 10 to 8 players (4 per team)
@@ -105,8 +105,13 @@ struct GameStatePacket {
 // ============================================================================
 // SERIALIZATION (sf::Packet)
 // ============================================================================
-// SANTI: entire serialization section is new – original had no operators.
+// SANTI: entire serialization section is new - original had no operators.
 // ============================================================================
+
+// SANTI: forward declare FloatRect serialization so GameStatePacket operators can use it
+inline sf::Packet& operator<<(sf::Packet& packet, const sf::FloatRect& rect);
+inline sf::Packet& operator>>(sf::Packet& packet, sf::FloatRect& rect);
+
 
 inline sf::Packet& operator<<(sf::Packet& packet, const sf::Vector2f& vector) {
 	return packet << vector.x << vector.y;
@@ -184,4 +189,12 @@ inline sf::Packet& operator>>(sf::Packet& packet, GameStatePacket& gameStatePack
 		>> gameStatePacket.pitchBounds
 		>> gameStatePacket.currentState;
 	return packet;
+}
+
+// SANTI: added FloatRect serialization (SFML Packet has no built-in for this)
+inline sf::Packet& operator<<(sf::Packet& packet, const sf::FloatRect& rect) {
+	return packet << rect.position << rect.size;
+}
+inline sf::Packet& operator>>(sf::Packet& packet, sf::FloatRect& rect) {
+	return packet >> rect.position >> rect.size;
 }
