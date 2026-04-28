@@ -4,6 +4,9 @@
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Keyboard.hpp>
 
+// SANTI: std::size_t lives in <cstddef> (there is no <size_t> header).
+#include <cstddef>
+
 // ============================================================================
 // CONFIGURATION NAMESPACE
 // ============================================================================
@@ -207,4 +210,8 @@ namespace Config {
 	// One place to change the port for host + client.
 	constexpr unsigned short HOST_PORT = 54000;
 
+	// SANTI: changed from 10 to 8 players (4 per team)
+	inline constexpr std::size_t kNumPlayers = 8;
+
 } // namespace Config
+

@@ -120,7 +120,8 @@ void NetworkManager::pollIncomingInputs(std::queue<InputPacket>& outQueue)
 		}
 
 		// Guard: invalid player ID
-		if (inputPacket.playerId >= kNumPlayers) {
+		// SANTI: kNumPlayers is defined in Config (Common/Constants.h).
+		if (inputPacket.playerId >= Config::kNumPlayers) {
 			receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
 			continue;
 		}

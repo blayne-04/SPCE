@@ -5,6 +5,8 @@
 #include <array>
 #include <cstdint>
 
+#include "Constants.h"
+
 // ============================================================================
 // NETWORK PROTOCOL (HOST-AUTHORITATIVE, SNAPSHOT-DRIVEN)
 // ============================================================================
@@ -20,8 +22,7 @@
 // - Host computes "pressed this frame" by comparing with last tick's input.
 // ============================================================================
 
-// SANTI: changed from 10 to 8 players (4 per team)
-inline constexpr std::size_t kNumPlayers = 8;
+
 
 // SANTI: added NetMsg enum for packet type identification
 enum class NetMsg : std::uint8_t {
@@ -55,7 +56,7 @@ struct InputPacket {
 
 struct FrameInput {
 	// SANTI: changed from 10 to kNumPlayers (8)
-	std::array<InputPacket, kNumPlayers> inputs{};
+	std::array<InputPacket, Config::kNumPlayers> inputs{};
 };
 
 // ============================================================================
@@ -76,7 +77,7 @@ struct GameStatePacket {
 	std::uint32_t frameNumber = 0;
 
 	// SANTI: changed from 10 to kNumPlayers (8)
-	std::array<PlayerState, kNumPlayers> players{};
+	std::array<PlayerState, Config::kNumPlayers> players{};
 
 	sf::Vector2f ballPosition{ 0.f, 0.f };
 	sf::Vector2f ballVelocity{ 0.f, 0.f };
