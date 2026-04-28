@@ -19,4 +19,3 @@ public:
 	// GameStatePacket. The AI uses the snapshot to decide movement and actions.
 	InputPacket getAIInput(std::uint8_t playerID, const GameStatePacket& gameStatePacket);
 };
-
