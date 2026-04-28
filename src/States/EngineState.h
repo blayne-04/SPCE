@@ -1,6 +1,7 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
+#include "../Input/InputHandler.h"
 
 /* Forward Declaration */
 class GameEngine;
@@ -75,16 +76,22 @@ class ClientPlayingState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
     void render(sf::RenderWindow& window) override;
+private: 
+    InputHandler mInputHandler;
 };
 
 class HostPlayingState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
     void render(sf::RenderWindow& window) override;
+private:
+    InputHandler mInputHandler;
 };
 
 class SinglePlayerPlayingState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
     void render(sf::RenderWindow& window) override;
+private:
+    InputHandler mInputHandler;
 };
