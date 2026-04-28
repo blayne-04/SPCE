@@ -1,5 +1,7 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include "../Simulation/Match.h"
+#include "../Network/NetworkManager.h"
 #include <vector>
 #include <memory>
 
@@ -19,11 +21,15 @@ public:
     void transitionTo(std::unique_ptr<EngineState> state);
 
     sf::RenderWindow& getWindow() { return mWindow; }
+    Match& getMatch() { return mMatch; }
+    NetworkManager& getNetwork() { return mNetworkManager; }
 
 private:
     sf::RenderWindow mWindow;
     std::vector<std::unique_ptr<EngineState>> mStates;
+    Match mMatch;
+    NetworkManager mNetworkManager;
 
-    /* Handle OS Events e.g. (Maximize window, Minimize window, Close Window) */
+    /* Handle OS Events e.g. (Close Window) */
     void processOsEvents();
 };

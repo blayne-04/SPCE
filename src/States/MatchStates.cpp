@@ -1,4 +1,6 @@
 #include "MatchStates.h"
+#include "../Simulation/Match.h"
+#include "../Common/Constants.h"
 
 /* ========================================= */
 /*              GAME OVER                    */
@@ -8,7 +10,7 @@ GameOverState::GameOverState()
 {
 }
 
-void GameOverState::update(Match& match, const FrameInput& frameData)
+void GameOverState::update(Match& match, const FrameInput& frameData, float dt)
 {
 }
 
@@ -29,14 +31,15 @@ void GameOverState::onExit(Match& match)
 
 KickoffState::KickoffState()
 {
+
 }
 
-void KickoffState::update(Match& match, const FrameInput& frameData)
-{
+void KickoffState::update(Match& match, const FrameInput& frameData, float dt) {
+	match.TransitionTo(std::make_unique<PlayingState>());
 }
 
-void KickoffState::onEnter(Match& match)
-{
+void KickoffState::onEnter(Match& match) {
+	match.getWorld().resetKickoff();
 }
 
 void KickoffState::onExit(Match& match)
@@ -54,8 +57,17 @@ PlayingState::PlayingState()
 {
 }
 
-void PlayingState::update(Match& match, const FrameInput& frameData)
-{
+void PlayingState::update(Match& match, const FrameInput& frameData, float dt) {
+	// SANTI: match timer counts up (soccer clock).
+	// You'll need Match to expose a method OR make mMatchTimerSec mutable via a setter.
+	// Example (preferred): match.addTime(dt);
+
+	// MVP: apply frameData.inputs[i].moveDirection to move players in World.
+	// (Either do it here, or call Player::applyInput(...) if you add it.)
+
+	// End condition example:
+	// if (match.getTimerSec() >= Config::MATCH_DURATION_SECONDS)
+	/*{ match.TransitionTo(std::make_unique<GameOverState>()); }*/
 }
 
 void PlayingState::onEnter(Match& match)
