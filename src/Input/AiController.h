@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 // SANTI: Removed all includes except Packets.h (no Match.h, no NetworkManager.h).
 #include "../Common/Packets.h"
