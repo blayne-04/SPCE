@@ -7,13 +7,6 @@
 
 class EngineState;
 
-struct EngineContext {
-    sf::RenderWindow& window;
-    Match& match;
-    NetworkManager& network;
-    std::function<void(std::unique_ptr<EngineState>)> transitionTo;
-};
-
 class GameEngine {
 public:
     GameEngine();
@@ -36,6 +29,6 @@ private:
     Match mMatch;
     NetworkManager mNetworkManager;
 
-    /* Handle OS Events e.g. (Maximize window, Minimize window, Close Window) */
+    /* Handle OS Events e.g. (Close Window) */
     void processOsEvents();
 };

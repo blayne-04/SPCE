@@ -1,7 +1,6 @@
 #include "GameEngine.h"
 #include "../States/EngineState.h"
 #include "../Common/Constants.h"
-
 #include <optional>
 
 
@@ -34,11 +33,6 @@ void GameEngine::processOsEvents() {
 	while (const std::optional<sf::Event> event = mWindow.pollEvent()) {
 		if (event->is<sf::Event::Closed>()) {
 			mWindow.close();
-		}
-
-		if (!mStates.empty()) {
-			sf::Event mutableEvent = *event;
-			mStates.back()->handleInput(*this, mutableEvent);
 		}
 	}
 }
