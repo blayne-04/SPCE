@@ -2,14 +2,16 @@
 #include "../Core/GameEngine.h"
 #include "../Common/Constants.h"
 
-
-
-/* ========================================= */
-/*               START MENU                  */
-/* ========================================= */
+// ============================================================================
+// START MENU STATE
+// ============================================================================
+// Entry point of the game. Allows the player to choose between:
+//   - H key: start as host (HostPlayingState)
+//   - C key: start as client (ClientPlayingState)
+// ============================================================================
 
 void StartMenuState::handleInput(GameEngine& engine, sf::Event& event) {
-	// TODO: Implement input handling for start menu
+	// TODO: Implement full input handling for start menu.
 
 	// SANTI - TEST - DELETE AFTER
 	const auto* key = event.getIf<sf::Event::KeyPressed>();
@@ -23,72 +25,82 @@ void StartMenuState::handleInput(GameEngine& engine, sf::Event& event) {
 		engine.transitionTo(std::make_unique<ClientPlayingState>());
 		return;
 	}
-
-
 }
 
 void StartMenuState::update(GameEngine& engine, float dt) {
-	// TODO: Implement update logic for start menu
-
-
+	// TODO: Implement update logic for start menu (animations, etc.).
 }
 
 void StartMenuState::render(sf::RenderWindow& window) {
-	// Draw menu - DO NOT call window.clear()
+	// Draw menu background (DO NOT call window.clear() here).
 	sf::RectangleShape background(sf::Vector2f(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT));
-	background.setFillColor(sf::Color(50, 50, 100)); // Dark blue
+	background.setFillColor(sf::Color(50, 50, 100));  // Dark blue.
 	window.draw(background);
-	// TODO: Draw menu elements
+	// TODO: Draw menu elements (text, buttons, etc.).
 }
 
-/* ========================================= */
-/*           SETTINGS MENU                   */
-/* ========================================= */
+// ============================================================================
+// SETTINGS MENU STATE
+// ============================================================================
+// Placeholder for settings screen (graphics, audio, controls).
+// ============================================================================
 
 void SettingsMenuState::handleInput(GameEngine& engine, sf::Event& event) {
-	// TODO: Implement input handling for settings menu
+	// TODO: Implement input handling for settings menu.
 }
 
 void SettingsMenuState::update(GameEngine& engine, float dt) {
-	// TODO: Implement update logic for settings menu
+	// TODO: Implement update logic for settings menu.
 }
 
 void SettingsMenuState::render(sf::RenderWindow& window) {
-	// Draw settings - DO NOT call window.clear()
+	// Draw settings background (DO NOT call window.clear()).
 	sf::RectangleShape background(sf::Vector2f(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT));
-	background.setFillColor(sf::Color(50, 100, 50)); // Dark green
+	background.setFillColor(sf::Color(50, 100, 50));  // Dark green.
 	window.draw(background);
-	// TODO: Draw settings UI
+	// TODO: Draw settings UI elements.
 }
 
-/* ========================================= */
-/*            PAUSE MENU                     */
-/* ========================================= */
+// ============================================================================
+// PAUSE MENU STATE
+// ============================================================================
+// Semi-transparent overlay that appears when the player presses P.
+// Typically used to resume the game or return to the main menu.
+// ============================================================================
 
 void PauseMenuState::handleInput(GameEngine& engine, sf::Event& event) {
-	// TODO: Implement input handling for pause menu
+	// TODO: Implement input handling for pause menu.
 }
 
 void PauseMenuState::update(GameEngine& engine, float dt) {
-	// TODO: Implement update logic for pause menu
+	// TODO: Implement update logic for pause menu.
 }
 
 void PauseMenuState::render(sf::RenderWindow& window) {
-	// Draw semi-transparent overlay - DO NOT call window.clear()
+	// Draw semi-transparent overlay (DO NOT call window.clear()).
 	sf::RectangleShape overlay(sf::Vector2f(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT));
-	overlay.setFillColor(sf::Color(0, 0, 0, 180)); // Semi-transparent black
+	overlay.setFillColor(sf::Color(0, 0, 0, 180));  // Black with 180 alpha.
 	window.draw(overlay);
-	// TODO: Draw pause menu options
+	// TODO: Draw pause menu options.
 }
 
-/* ========================================= */
-/*            CLIENT PLAY                    */
-/* ========================================= */
+// ============================================================================
+// CLIENT PLAYING STATE
+// ============================================================================
+// Client (non-authoritative) side of the networked match.
+// Responsibilities:
+//   - Send local inputs to the host (destination).
+//   - Receive authoritative snapshots from the host.
+//   - Render the latest snapshot.
+//
+// Network handshake:
+//   - Initially no snapshot -> use fallback player ID (4).
+//   - Send neutral inputs until first snapshot arrives.
+//   - After snapshot received, use controlledAwayPlayerId from host.
+// ============================================================================
 
 ClientPlayingState::ClientPlayingState()
 {
-
-
 	mNetwork.startClient(sf::IpAddress::LocalHost, Config::HOST_PORT);
 
 	// Before first STATE arrives, we have no controlledAwayPlayerId yet.
@@ -96,7 +108,6 @@ ClientPlayingState::ClientPlayingState()
 	mLastState = GameStatePacket{};
 	mNextInputSequence = 0;
 }
-
 
 void ClientPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
 	if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
@@ -129,7 +140,6 @@ void ClientPlayingState::update(GameEngine& engine, float dt) {
 		input = mInput.getLocalInput(playerId);
 	}
 
-
 	// Always stamp routing + sequencing last so it's consistent.
 	input.playerId = playerId;
 	input.inputSequence = mNextInputSequence++;
@@ -139,27 +149,34 @@ void ClientPlayingState::update(GameEngine& engine, float dt) {
 	if (mNetwork.receiveLatestGameState(mLastState)) {
 		mHaveState = true;
 	}
-
-
 }
 
 void ClientPlayingState::render(sf::RenderWindow& window) {
-	// Draw game - DO NOT call window.clear()
+	// Draw game world (DO NOT call window.clear()).
 	sf::RectangleShape background(sf::Vector2f(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT));
 	background.setFillColor(sf::Color::Blue);
 	window.draw(background);
 }
 
-/* ========================================= */
-/*                HOST PLAY                  */
-/* ========================================= */
+// ============================================================================
+// HOST PLAYING STATE
+// ============================================================================
+// Host (authoritative) side of the networked match.
+// Responsibilities:
+//   - Simulate the game (not yet implemented in this stub).
+//   - Poll incoming inputs from the client.
+//   - Send authoritative snapshots back to the client.
+//
+// Important:
+//   - The host learns the client's (ip, port) from the first received INPUT.
+//   - sendGameState() does nothing until a client has been discovered.
+// ============================================================================
 
 HostPlayingState::HostPlayingState()
 {
 	mNetwork.startHost(Config::HOST_PORT);
 	mFrame = 0;
 }
-
 
 void HostPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
 	if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
@@ -170,15 +187,13 @@ void HostPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
 }
 
 void HostPlayingState::update(GameEngine& engine, float dt) {
-
 	std::queue<InputPacket> incoming;
-	mNetwork.pollIncomingInputs(incoming); // learns client ip:port on first INPUT
+	mNetwork.pollIncomingInputs(incoming); // learns client ip:port on first INPUT.
 
 	GameStatePacket state{};
 	state.frameNumber = mFrame++;
 
-	// Important for your decision: keep pitchBounds populated.
-
+	// Populate pitchBounds (required for client rendering).
 	state.pitchBounds = sf::FloatRect(
 		sf::Vector2f(0.f, 0.f),
 		sf::Vector2f(
@@ -186,21 +201,23 @@ void HostPlayingState::update(GameEngine& engine, float dt) {
 			static_cast<float>(Config::WINDOW_HEIGHT)
 		)
 	);
-	mNetwork.sendGameState(state); // does nothing until a client INPUT arrives
-
-
+	mNetwork.sendGameState(state); // does nothing until a client INPUT arrives.
 }
 
 void HostPlayingState::render(sf::RenderWindow& window) {
-	// Draw game - DO NOT call window.clear()
+	// Draw game world (DO NOT call window.clear()).
 	sf::RectangleShape background(sf::Vector2f(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT));
 	background.setFillColor(sf::Color::Red);
 	window.draw(background);
 }
 
-/* ========================================= */
-/*             SINGLEPLAYER                  */
-/* ========================================= */
+// ============================================================================
+// SINGLEPLAYER PLAYING STATE
+// ============================================================================
+// Placeholder for local single-player mode (no networking).
+// Currently only shows a green background and allows pause.
+// ============================================================================
+
 void SinglePlayerPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
 	if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
 		if (keyPressed->code == sf::Keyboard::Key::P) {
@@ -209,10 +226,12 @@ void SinglePlayerPlayingState::handleInput(GameEngine& engine, sf::Event& event)
 	}
 }
 
-void SinglePlayerPlayingState::update(GameEngine& engine, float dt) {}
+void SinglePlayerPlayingState::update(GameEngine& engine, float dt) {
+	// TODO: Implement single-player simulation.
+}
 
 void SinglePlayerPlayingState::render(sf::RenderWindow& window) {
-	// Draw game - DO NOT call window.clear()
+	// Draw game world (DO NOT call window.clear()).
 	sf::RectangleShape background(sf::Vector2f(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT));
 	background.setFillColor(sf::Color::Green);
 	window.draw(background);

@@ -3,6 +3,14 @@
 #include "Core/GameEngine.h"
 #include <iostream>
 
+// ============================================================================
+// MAIN ENTRY POINT
+// ============================================================================
+// Execution starts here.
+// - In debug mode, runs networking and state machine tests.
+// - Then launches the actual game (GameEngine).
+// ============================================================================
+
 int main()
 {
 	std::cout << "===================================" << std::endl;
@@ -10,14 +18,17 @@ int main()
 	std::cout << "===================================" << std::endl;
 
 #ifdef _DEBUG
-	// Run tests only in debug mode
+	// ------------------------------------------------------------------------
+	// DEBUG MODE: Run automated tests before starting the game.
+	// ------------------------------------------------------------------------
 	try {
-
-		// SANTI
+		// SANTI: Networking handshake test (host <-> client exchange).
 		Test::testNetworkingHandshakeStep3();
 
+		// Visual state machine tests.
 		Test::testEngineStateMachine();
 		Test::testMatchStateMachine();
+
 		std::cout << "\n=== All Tests PASSED ===" << std::endl;
 	}
 	catch (const std::exception& e) {
@@ -26,7 +37,9 @@ int main()
 	}
 #endif
 
-	// Start the game directly (no waiting for input)
+	// ------------------------------------------------------------------------
+	// NORMAL GAME START (debug or release)
+	// ------------------------------------------------------------------------
 	std::cout << "\nStarting game window..." << std::endl;
 
 	try {
