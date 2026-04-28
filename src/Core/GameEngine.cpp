@@ -31,11 +31,6 @@ void GameEngine::processOsEvents() {
         if (event->is<sf::Event::Closed>()) {
             mWindow.close();
         }
-        
-        if (!mStates.empty()) {
-            sf::Event mutableEvent = *event;
-            mStates.back()->handleInput(*this, mutableEvent);
-        }
     }
 }
 
@@ -48,7 +43,7 @@ void GameEngine::run() {
         processOsEvents();
 
         if (!mStates.empty()) {
-            mStates.back()->update(*this, dt);
+            mStates.back()->tick(*this, dt);
         }
 
         mWindow.clear();

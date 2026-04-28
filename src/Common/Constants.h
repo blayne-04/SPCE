@@ -126,18 +126,6 @@ namespace Config {
 	constexpr float DEFAULT_KICK_DIRECTION_X = 1.f;
 	constexpr float VECTOR_NORMALIZATION_EPSILON = 0.01f;
 
-	// Left hand (movement)
-	inline constexpr sf::Keyboard::Key MOVE_UP_KEY = sf::Keyboard::Key::W;
-	inline constexpr sf::Keyboard::Key MOVE_DOWN_KEY = sf::Keyboard::Key::S;
-	inline constexpr sf::Keyboard::Key MOVE_LEFT_KEY = sf::Keyboard::Key::A;
-	inline constexpr sf::Keyboard::Key MOVE_RIGHT_KEY = sf::Keyboard::Key::D;
-
-	// Right hand (actions) – JKL cluster
-	inline constexpr sf::Keyboard::Key SHOOT_KEY = sf::Keyboard::Key::K;           // primary shot
-	inline constexpr sf::Keyboard::Key PASS_KEY = sf::Keyboard::Key::J;            // short pass
-	inline constexpr sf::Keyboard::Key TACKLE_KEY = sf::Keyboard::Key::L;          // standing tackle
-	inline constexpr sf::Keyboard::Key SWITCH_PLAYER_KEY = sf::Keyboard::Key::I;   // change controlled player
-
 	// Quit (left hand, easy access)
 	inline constexpr sf::Keyboard::Key QUIT_KEY = sf::Keyboard::Key::Q;
 

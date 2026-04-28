@@ -8,7 +8,6 @@ public:
 
 	Player() = default;
 
-
 	void update(float downTime);
 
 	void kickBall();

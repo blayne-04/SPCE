@@ -55,7 +55,11 @@ void PauseMenuState::render(sf::RenderWindow& window)
 
 void ClientPlayingState::tick(GameEngine& engine, float dt) 
 {
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
+		engine.pushState(std::make_unique<PauseMenuState>());
+	}
 
+	InputPacket clientInput = mInputHandler.pollInput();
 }
 
 void ClientPlayingState::render(sf::RenderWindow& window) 

@@ -16,7 +16,7 @@ public:
 
 	void startClient(const sf::IpAddress& remoteAddress, uint16 remotePort);
 
-	void pollIncomingInputs(std::queue<InputPacket>);
+	void pollIncomingInputs(std::queue<InputPacket>& inputQueue);
 
 	void sendGameState(const GameStatePacket& gameStatePacket);
 

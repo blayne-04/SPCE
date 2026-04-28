@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Simulation/Match.h"
-#include "Network/NetworkManager.h"
+#include "../Simulation/Match.h"
+#include "../Network/NetworkManager.h"
 
 class AIController {
 

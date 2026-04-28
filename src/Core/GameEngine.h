@@ -1,5 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include "../Simulation/Match.h"
 #include <vector>
 #include <memory>
 
@@ -22,6 +23,7 @@ public:
 private:
     sf::RenderWindow mWindow;
     std::vector<std::unique_ptr<EngineState>> mStates;
+    Match mMatch;
 
     /* Handle OS Events e.g. (Maximize window, Minimize window, Close Window) */
     void processOsEvents();
