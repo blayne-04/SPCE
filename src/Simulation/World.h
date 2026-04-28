@@ -11,6 +11,7 @@ public:
     World() = default;
     ~World() = default;
 
+    void overwriteWorldFromPacket(GameStatePacket incomingHostPacket);
     // Your methods here...
 
 private:

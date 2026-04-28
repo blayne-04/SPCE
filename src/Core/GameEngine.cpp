@@ -42,13 +42,15 @@ void GameEngine::run() {
         
         processOsEvents();
 
+        // Call tick() on the active state (top of stack)
         if (!mStates.empty()) {
             mStates.back()->tick(*this, dt);
         }
 
+        // Render all states in the stack (for overlay support, e.g., pause menu over game)
         mWindow.clear();
         for (auto& state : mStates) {
-            state->render(mWindow);
+            state->render(*this);
         }
         mWindow.display();
     }

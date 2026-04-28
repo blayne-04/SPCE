@@ -1,38 +1,63 @@
 #pragma once
-
 #include <SFML/Network.hpp>
 #include "../Common/Packets.h"
 #include <queue>
+#include <vector>
 
 using uint16 = unsigned short;
 
 class NetworkManager {
-
 public:
+    NetworkManager();
 
-	NetworkManager() = default;
+    // --- INITIALIZATION ---
+    void startHost(uint16 localPort);
+    void startClient(const sf::IpAddress& hostAddress, uint16 hostPort);
 
-	void startHost(uint16 localPort);
+    // --- HANDSHAKE PHASE (The "Chicken and Egg" Fix) ---
 
-	void startClient(const sf::IpAddress& remoteAddress, uint16 remotePort);
+    /* CLIENT: Sends a "JoinRequest" packet to the Host. Call this once inside ClientPlayingState's constructor or first tick. */
+    void sendJoinRequest();
 
-	void pollIncomingInputs(std::queue<InputPacket>& inputQueue);
+    /* HOST: Polls for JoinRequests. If a new IP/Port connects, assigns them an ID (e.g., 5) and sends back an AssignmentPacket.*/
+    void handleHandshakeRequests();
 
-	void sendGameState(const GameStatePacket& gameStatePacket);
+    /* CLIENT: Checks the socket for an AssignmentPacket. Returns true and fills outId if the Host has welcomed us. */
+    bool pollIdAssignment(uint8_t& outId);
 
-	void sendPlayerInput(const InputPacket& inputPacket);
 
-	bool receiveLatestGameState(GameStatePacket& outState);
+    // --- SIMULATION PHASE ---
 
+    /* HOST: Collects all InputPackets from all connected clients.*/
+    void pollIncomingInputs(std::queue<InputPacket>& inputQueue);
+
+    /* HOST: Iterates through mClients and sends the World State to everyone. */
+    void broadcastGameState(const GameStatePacket& gameStatePacket);
+
+    /* CLIENT: Sends your local InputPacket to the mHostAddress. */
+    void sendPlayerInput(const InputPacket& inputPacket);
+
+    /* CLIENT: Checks for the latest authoritative "Truth" from the Host. */
+    bool receiveLatestGameState(GameStatePacket& outState);
 
 private:
+    sf::UdpSocket mSocket;
+    bool mIsHost = false;
 
-	sf::UdpSocket mSocket;
+    /* Client Data */
+    sf::IpAddress mHostAddress;
+    uint16 mHostPort;
 
-	uint16 mLocalPort;
+    /* Host Data */
+    struct ConnectedClient {
+        sf::IpAddress ip;
+        uint16 port;
+        uint8_t playerId;
+        sf::Time lastSeen;
+    };
 
-	sf::IpAddress mRemoteAddress;
+    std::vector<ConnectedClient> mClients;
 
-	uint16 mRemotePort;
-
+    /* Check if a client is in our list */
+    bool isClientKnown(const sf::IpAddress& ip, uint16 port);
 };

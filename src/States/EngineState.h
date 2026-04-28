@@ -2,6 +2,13 @@
 
 #include <SFML/Graphics.hpp>
 #include "../Input/InputHandler.h"
+#include "../Input/AIController.h"
+#include "../Core/Renderer.h"
+#include <stdint.h>
+#include <stdio.h>
+
+inline constexpr std::uint8_t HOST_ID = 0; // Reserve host player ID
+
 
 /* Forward Declaration */
 class GameEngine;
@@ -16,82 +23,64 @@ public:
 
     /**
      * Called once per frame. Handle input and update state logic.
-     * @param engine - Reference to GameEngine for state transitions
+     * @param engine - Reference to GameEngine for state transitions and resources
      * @param dt - Delta time in seconds since last frame
      */
     virtual void tick(GameEngine& engine, float dt) = 0;
 
     /**
      * Called once per frame after tick. Draw to the window.
-     * @param window - SFML render target
+     * @param engine - Reference to GameEngine for accessing window and resources
      */
-    virtual void render(sf::RenderWindow& window) = 0;
+    virtual void render(GameEngine& engine) = 0;
 };
 
 class StartMenuState : public EngineState {
 public:
-    StartMenuState();
-
     void tick(GameEngine& engine, float dt) override;
-    void render(sf::RenderWindow& window) override;
-
-private:
-    enum class MenuOption {
-        Singleplayer,
-        Multiplayer,
-        Settings,
-        Exit
-    };
-
-    enum class MultiplayerOption {
-        Host,
-        Join
-    };
-
-    MenuOption mSelectedOption = MenuOption::Singleplayer;
-    bool mMultiplayerDropdownOpen = false;
-    MultiplayerOption mSelectedMultiplayerOption = MultiplayerOption::Host;
-
-    // Helper methods
-    void handleKeyboardInput(GameEngine& engine, const sf::Event::KeyPressed& keyPress);
-    void handleMouseInput(GameEngine& engine, const sf::Event::MouseButtonPressed& mousePress);
-    void selectOption(GameEngine& engine);
-    void drawButton(sf::RenderWindow& window, const sf::Vector2f& position, const sf::Vector2f& size,
-        const std::string& text, bool isSelected, const sf::Color& color = sf::Color(80, 80, 120));
+    void render(GameEngine& engine) override;
 };
 
 class SettingsMenuState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
-    void render(sf::RenderWindow& window) override;
+    void render(GameEngine& engine) override;
 };
 
 class PauseMenuState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
-    void render(sf::RenderWindow& window) override;
+    void render(GameEngine& engine) override;
 };
 
 class ClientPlayingState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
-    void render(sf::RenderWindow& window) override;
-private: 
+    void render(GameEngine& engine) override;
+private:
     InputHandler mInputHandler;
+    std::uint8_t mMyPlayerID = 255;
+    Renderer mRenderer;
 };
 
 class HostPlayingState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
-    void render(sf::RenderWindow& window) override;
+    void render(GameEngine& engine) override;
 private:
     InputHandler mInputHandler;
+    AIController mAiController;
+    std::uint8_t mMyPlayerID = 1;
+    Renderer mRenderer;
 };
 
 class SinglePlayerPlayingState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
-    void render(sf::RenderWindow& window) override;
+    void render(GameEngine& engine) override;
 private:
     InputHandler mInputHandler;
+	AIController mAiController;
+    std::uint8_t mMyPlayerID = 1;
+    Renderer mRenderer;
 };

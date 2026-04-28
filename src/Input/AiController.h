@@ -9,7 +9,7 @@ public:
 
 	AIController() = default;
 
-	InputPacket getAIInput(int slotID, const Match& match);
+	InputPacket getAIInput(int playerID, const Match& match);
 
 
 };
