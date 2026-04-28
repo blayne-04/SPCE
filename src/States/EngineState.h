@@ -3,20 +3,16 @@
 #include <SFML/Graphics.hpp>
 #include "../Input/InputHandler.h"
 #include "../Core/Renderer.h"
+#include "../Input/AiController.h"
 #include <stdint.h>
 #include <stdio.h>
 
-/* Forward Declaration */
+/* Forward declaration */
 class GameEngine;
 
-/**
- * Base class for all engine states.
- * States handle high-level game flow (menus, gameplay modes, etc.)
- */
-// input, update logic, and rendering. The GameEngine manages a stack of states.
-// ============================================================================
-
 class EngineState {
+public:
+	EngineState() = default;
     /**
      * Called once per frame. Handle input and update state logic.
      * @param engine - Reference to GameEngine for state transitions and resources
@@ -29,16 +25,25 @@ class EngineState {
      * @param engine - Reference to GameEngine for accessing window and resources
      */
     virtual void render(GameEngine& engine) = 0;
-		0;
-	virtual void tick(GameEngine& engine, float dt) = 0;
-	virtual void render(GameEngine& engine) = 0;
 };
 
 class StartMenuState : public EngineState {
 public:
+    StartMenuState();
     void tick(GameEngine& engine, float dt) override;
     void render(GameEngine& engine) override;
 private:
+    sf::Texture mBackgroundTex;
+    std::optional<sf::Sprite> mBackgroundSprite;
+
+    sf::Texture mButtonSheet;
+    std::optional<sf::Sprite> mBtnPlay;
+    std::optional<sf::Sprite> mBtnHost;
+    std::optional<sf::Sprite> mBtnJoin;
+    std::optional<sf::Sprite> mBtnSettings;
+
+    /* Helper to see if a sprite is clicked */
+    bool isSpriteClicked(sf::Sprite& sprite, sf::RenderWindow& window);
 };
 
 class SettingsMenuState : public EngineState {
@@ -61,6 +66,7 @@ private:
     InputHandler mInputHandler;
     std::uint8_t mMyPlayerID = 255;
     Renderer mRenderer;
+    GameStatePacket mLatestState;
 };
 
 class HostPlayingState : public EngineState {

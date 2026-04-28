@@ -1,21 +1,12 @@
 #pragma once
 
-// SANTI: Removed all includes except Packets.h (no Match.h, no NetworkManager.h).
 #include "../Common/Packets.h"
-
-// ============================================================================
-// AI CONTROLLER
-// ============================================================================
-// Generates InputPacket for computer-controlled players.
-// Reads the same authoritative GameStatePacket that the renderer and network use,
-// ensuring deterministic behavior across host and clients.
-// ============================================================================
 
 class AIController {
 public:
-	// SANTI: Removed default constructor (compiler-generated is sufficient).
+	/* Best to be explicit about default behavior */
+	AIController() = default;
 
-	// SANTI: Changed signature - takes uint8_t playerID and const reference to
-	// GameStatePacket. The AI uses the snapshot to decide movement and actions.
+	/* Takes uint8_t playerID and gameStatePacket, returns AI Input packet */
 	InputPacket getAIInput(std::uint8_t playerID, const GameStatePacket& gameStatePacket);
 };

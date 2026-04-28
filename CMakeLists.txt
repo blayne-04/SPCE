@@ -1,16 +1,21 @@
 cmake_minimum_required(VERSION 3.28)
 
-# FIX: Crucial for CMake 4.x users to support the FreeType dependency
+# 1. Global Settings & Silence (Do this FIRST to suppress SFML noise)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+set(CMAKE_MESSAGE_LOG_LEVEL WARNING) 
+set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
+set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE BOOL "" FORCE)
 
 project(SPCE LANGUAGES CXX)
 
-# 1. Compiler Settings
+# 2. Compiler Settings
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# This puts your .exe in build/bin/ instead of burying it in subfolders
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# 2. Fetch SFML 3.1.0
+# 3. Fetch SFML 3.1.0
 include(FetchContent)
 FetchContent_Declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
@@ -21,23 +26,21 @@ FetchContent_Declare(SFML
 )
 FetchContent_MakeAvailable(SFML)
 
-# 3. Handle Nested Folder Structure
-# This looks into all subdirectories (Core, Network, etc.) for code files
+# 4. Handle Nested Folder Structure
+# GLOB_RECURSE finds everything in src/ so you don't have to list them manually.
 file(GLOB_RECURSE GAME_SOURCES 
     "src/*.cpp" 
     "src/*.h" 
     "src/*.hpp"
 )
 
-# 4. Define the Target
-add_executable(${PROJECT_NAME} ${GAME_SOURCES} "src/Common/Types.h" "src/Common/Packets.h" "src/Core/GameEngine.h" "src/Core/Renderer.h" "src/Core/Renderer.cpp" "src/Network/NetworkManager.h" "src/Network/NetworkManager.cpp" "src/Input/InputHandler.h"  "src/Input/AIController.h" "src/Input/AIController.cpp"  "src/Objects/Player.h" "src/Objects/Ball.h" "src/Objects/Goal.h" "src/Objects/Goal.cpp" "src/Simulation/Match.h" "src/Simulation/Match.cpp" "src/Simulation/World.h" "src/Simulation/World.cpp" "src/States/MatchStates.h"    "src/States/MatchStates.cpp"   "src/Common/Constants.h" "src/Simulation/PhysicsEngine.h" "src/Simulation/PhysicsEngine.cpp" "src/States/EngineState.h" "src/States/EngineState.cpp" "src/Test.h")
+# 5. Define the Target
+# CLEANUP: Removed the long list of manual files. 
+# Having them in both GLOB and here causes "duplicate symbol" errors.
+add_executable(${PROJECT_NAME} ${GAME_SOURCES})
 
-# 5. The "EE-Approved" Include Strategy
-# This allows you to #include "Common/Types.h" instead of "../Common/Types.h"
+# 6. Include & Link
 target_include_directories(${PROJECT_NAME} PRIVATE src)
-
-# 6. Link SFML Modules
-# Including Network and Audio as required by your project structure
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     SFML::Graphics 
     SFML::Audio 
@@ -46,20 +49,22 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     SFML::System
 )
 
-# 7. Quality of Life: Asset Management
-# Automatically copies your 'assets' folder to the bin folder
+# 7. Asset Management
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets")
+    # Rule A: Copy to the bin folder (Where the .exe lives)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/assets"
         "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
     )
-endif()
 
-#8. Disable warnings from SFML headers
-set(CMAKE_MESSAGE_LOG_LEVEL WARNING) 
-set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
-set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE BOOL "" FORCE)
+    # Rule B: Copy to the build root (Where Visual Studio looks by default)
+    add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/assets"
+        "${CMAKE_BINARY_DIR}/assets"
+    )
+endif()
 
 # Set VS Startup Project
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})

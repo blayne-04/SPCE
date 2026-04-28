@@ -1,177 +1,118 @@
 #include "Renderer.h"
-
 #include "Common/Constants.h"
-
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
-#include <string>
 
 namespace {
-const sf::Font* getHudFont() {
-	static bool attempted = false;
-	static sf::Font font;
-	static bool loaded = false;
+    const sf::Font* getHudFont() {
+        static sf::Font font;
+        static bool loaded = font.openFromFile("assets/fonts/arial.ttf");
+        return loaded ? &font : nullptr;
+    }
 
-	if (attempted) {
-		return loaded ? &font : nullptr;
-	}
+    std::string stateNameFromId(int stateId) {
+        switch (stateId) {
+        case 0: return "Kickoff";
+        case 1: return "Playing";
+        case 2: return "Goal";
+        case 3: return "GameOver";
+        default: return "Unknown";
+        }
+    }
 
-	attempted = true;
-
-	// Config::FONT_PATH may be relative to the working directory.
-	loaded = font.openFromFile(Config::FONT_PATH);
-	if (loaded) {
-		return &font;
-	}
-
-	// Fallback for build setups that copy assets into the executable directory.
-	loaded = font.openFromFile("assets/fonts/arial.ttf");
-	if (loaded) {
-		return &font;
-	}
-
-	return nullptr;
+    std::string formatClock(float seconds) {
+        int total = std::max(0, static_cast<int>(seconds));
+        std::ostringstream oss;
+        oss << (total / 60) << ":" << std::setfill('0') << std::setw(2) << (total % 60);
+        return oss.str();
+    }
 }
 
-sf::Color teamFillColor(std::uint8_t teamId) {
-	if (teamId == 0) return sf::Color(235, 245, 255);
-	return sf::Color(255, 230, 230);
+Renderer::Renderer() {
+    // 1. Initialize Background
+    if (mBackgroundTex.loadFromFile("assets/background/football_field_without_holes.png")) {
+        mBackgroundSprite.emplace(mBackgroundTex);
+        float scaleX = static_cast<float>(Config::WINDOW_WIDTH) / mBackgroundTex.getSize().x;
+        float scaleY = static_cast<float>(Config::WINDOW_HEIGHT) / mBackgroundTex.getSize().y;
+        mBackgroundSprite->setScale({ scaleX, scaleY });
+    }
+
+    // 2. Load Teammate's Animated Sheets
+    std::string paths[2] = { "Color1/", "Color6/" };
+    std::string files[4] = { "Down.png", "Up.png", "Left.png", "Right.png" };
+    std::string base = "assets/textures/Penzilla Protagonist/CharacterSheets/";
+
+    for (int team = 0; team < 2; ++team) {
+        for (int dir = 0; dir < 4; ++dir) {
+            mTeamTextures[team][dir].loadFromFile(base + paths[team] + files[dir]);
+        }
+    }
+
+    // 3. Emplace Player Sprite using the first available texture
+    mPlayerSprite.emplace(mTeamTextures[0][0]);
+    mPlayerSprite->setOrigin({ 12.f, 12.f });
 }
-
-sf::Color teamOutlineColor(std::uint8_t teamId) {
-	if (teamId == 0) return sf::Color(60, 160, 255);
-	return sf::Color(255, 90, 90);
-}
-
-std::string stateNameFromId(int stateId) {
-	switch (stateId) {
-	case 0: return "Kickoff";
-	case 1: return "Playing";
-	case 2: return "Goal";
-	case 3: return "GameOver";
-	default: return "Unknown";
-	}
-}
-
-std::string formatClock(float seconds) {
-	if (seconds < 0.f) seconds = 0.f;
-
-	const int total = static_cast<int>(seconds);
-	const int minutes = total / 60;
-	const int secs = total % 60;
-
-	std::ostringstream oss;
-	oss << minutes << ":" << std::setfill('0') << std::setw(2) << secs;
-	return oss.str();
-}
-} // namespace
 
 void Renderer::render(sf::RenderWindow& window, const GameStatePacket& gameState) {
-	// Map world coordinates (pitchBounds) into the window. With a full-viewport view,
-	// resizing the window stretches the world to fill.
-	sf::View worldView(gameState.pitchBounds);
-	worldView.setViewport(sf::FloatRect({ 0.f, 0.f }, { 1.f, 1.f }));
-	window.setView(worldView);
+    // A. Draw Background
+    window.setView(window.getDefaultView());
+    if (mBackgroundSprite) window.draw(*mBackgroundSprite);
 
-	// Pitch background.
-	sf::RectangleShape pitch(sf::Vector2f(gameState.pitchBounds.size.x, gameState.pitchBounds.size.y));
-	pitch.setPosition(gameState.pitchBounds.position);
-	pitch.setFillColor(sf::Color(30, 110, 55));
-	pitch.setOutlineThickness(2.f);
-	pitch.setOutlineColor(sf::Color(15, 70, 35));
-	window.draw(pitch);
+    // B. Switch to World View
+    sf::View worldView(gameState.pitchBounds);
+    worldView.setViewport(sf::FloatRect({ 0.f, 0.f }, { 1.f, 1.f }));
+    window.setView(worldView);
 
-	// Goals (debug visuals).
-	sf::RectangleShape leftGoal(sf::Vector2f(Config::GOAL_WIDTH, Config::GOAL_HEIGHT));
-	leftGoal.setPosition(sf::Vector2f(Config::LEFT_GOAL_X, Config::GOAL_Y_TOP));
-	leftGoal.setFillColor(sf::Color(255, 255, 255, 40));
-	leftGoal.setOutlineThickness(2.f);
-	leftGoal.setOutlineColor(sf::Color(240, 240, 240, 180));
-	window.draw(leftGoal);
+    // 1. Draw Ball
+    sf::CircleShape ball(Config::BALL_RADIUS);
+    ball.setOrigin({ Config::BALL_RADIUS, Config::BALL_RADIUS });
+    ball.setPosition(gameState.ballPosition);
+    ball.setFillColor(sf::Color::White);
+    window.draw(ball);
 
-	sf::RectangleShape rightGoal(sf::Vector2f(Config::GOAL_WIDTH, Config::GOAL_HEIGHT));
-	rightGoal.setPosition(sf::Vector2f(Config::RIGHT_GOAL_X, Config::GOAL_Y_TOP));
-	rightGoal.setFillColor(sf::Color(255, 255, 255, 40));
-	rightGoal.setOutlineThickness(2.f);
-	rightGoal.setOutlineColor(sf::Color(240, 240, 240, 180));
-	window.draw(rightGoal);
+    // 2. Draw Animated Players
+    int currentFrame = static_cast<int>(gameState.matchTimerSec / ANIM_SPEED) % 4;
 
-	// Ball.
-	sf::CircleShape ball(Config::BALL_RADIUS);
-	ball.setOrigin(sf::Vector2f(Config::BALL_RADIUS, Config::BALL_RADIUS));
-	ball.setPosition(gameState.ballPosition);
-	ball.setFillColor(sf::Color(245, 245, 245));
-	ball.setOutlineThickness(2.f);
-	ball.setOutlineColor(sf::Color(10, 10, 10, 180));
-	window.draw(ball);
+    for (const auto& p : gameState.players) {
+        int dir = 0; // Down
+        if (std::abs(p.facingDirection.y) > std::abs(p.facingDirection.x)) {
+            dir = (p.facingDirection.y > 0) ? 0 : 1; // Down/Up
+        }
+        else {
+            dir = (p.facingDirection.x > 0) ? 3 : 2; // Right/Left
+        }
 
-	// Players.
-	for (std::size_t i = 0; i < Config::kNumPlayers; ++i) {
-		const PlayerState& p = gameState.players[i];
+        mPlayerSprite->setTexture(mTeamTextures[p.teamId][dir]);
+        mPlayerSprite->setTextureRect(sf::IntRect({ currentFrame * FRAME_WIDTH, 0 }, { FRAME_WIDTH, FRAME_HEIGHT }));
+        mPlayerSprite->setPosition(p.position);
 
-		sf::CircleShape body(Config::PLAYER_HALF_SIZE);
-		body.setOrigin(sf::Vector2f(Config::PLAYER_HALF_SIZE, Config::PLAYER_HALF_SIZE));
-		body.setPosition(p.position);
+        // Scale sprite to match gameplay half-size constants
+        float scale = (Config::PLAYER_HALF_SIZE * 2.2f) / FRAME_WIDTH;
+        mPlayerSprite->setScale({ scale, scale });
 
-		body.setFillColor(teamFillColor(p.teamId));
-		body.setOutlineThickness(2.f);
-		body.setOutlineColor(teamOutlineColor(p.teamId));
+        window.draw(*mPlayerSprite);
+    }
 
-		// Highlight controlled players.
-		const bool isControlledHome = (static_cast<std::uint8_t>(i) == gameState.controlledHomePlayerId);
-		const bool isControlledAway = (static_cast<std::uint8_t>(i) == gameState.controlledAwayPlayerId);
-		if (isControlledHome || isControlledAway) {
-			body.setOutlineThickness(4.f);
-			body.setOutlineColor(sf::Color(255, 215, 0));
-		}
-
-		// Goalkeeper marker (visual only).
-		if (p.isGoalkeeper) {
-			body.setFillColor(sf::Color(240, 240, 170));
-		}
-
-		window.draw(body);
-
-		// Facing direction line.
-		const sf::Vector2f start = p.position;
-		const sf::Vector2f end = p.position + (p.facingDirection * (Config::PLAYER_HALF_SIZE * 1.4f));
-		sf::VertexArray facing(sf::PrimitiveType::Lines, 2);
-		facing[0].position = start;
-		facing[1].position = end;
-		facing[0].color = sf::Color(20, 20, 20, 200);
-		facing[1].color = sf::Color(20, 20, 20, 200);
-		window.draw(facing);
-	}
-
-	// HUD in screen space (not world space).
-	window.setView(window.getDefaultView());
-	renderHUD(window,
-		static_cast<int>(gameState.scoreHome),
-		static_cast<int>(gameState.scoreAway),
-		gameState.matchTimerSec,
-		static_cast<int>(gameState.currentState));
+    // C. Draw HUD
+    window.setView(window.getDefaultView());
+    renderHUD(window, (int)gameState.scoreHome, (int)gameState.scoreAway, gameState.matchTimerSec, (int)gameState.currentState);
 }
 
-void Renderer::renderHUD(sf::RenderWindow& window, int homeScore, int awayScore, float matchTimerSec, int stateID) {
-	const sf::Font* font = getHudFont();
-	if (!font) return;
+void Renderer::renderHUD(sf::RenderWindow& window, int hScore, int aScore, float time, int state) {
+    const sf::Font* font = getHudFont();
+    if (!font) return;
 
-	const std::string scoreStr = "HOME " + std::to_string(homeScore) + " - " + std::to_string(awayScore) + " AWAY";
-	sf::Text scoreText(*font, scoreStr, Config::SCORE_TEXT_SIZE);
-	scoreText.setFillColor(sf::Color::White);
-	scoreText.setPosition(sf::Vector2f(Config::SCORE_TEXT_X, Config::SCORE_TEXT_Y));
-	window.draw(scoreText);
+    auto drawText = [&](const std::string& str, sf::Vector2f pos, sf::Color color, int size) {
+        sf::Text text(*font, str, size);
+        text.setFillColor(color);
+        text.setOutlineColor(sf::Color::Black);
+        text.setOutlineThickness(2.f);
+        text.setPosition(pos);
+        window.draw(text);
+        };
 
-	const std::string timeStr = "TIME " + formatClock(matchTimerSec);
-	sf::Text timeText(*font, timeStr, Config::SCORE_TEXT_SIZE);
-	timeText.setFillColor(sf::Color::White);
-	timeText.setPosition(sf::Vector2f(Config::SCORE_TEXT_X, Config::SCORE_TEXT_Y + 28.f));
-	window.draw(timeText);
-
-	const std::string stateStr = stateNameFromId(stateID);
-	sf::Text stateText(*font, stateStr, Config::STATE_TEXT_SIZE);
-	stateText.setFillColor(sf::Color::White);
-	stateText.setPosition(sf::Vector2f(Config::STATE_TEXT_X, Config::STATE_TEXT_Y));
-	window.draw(stateText);
+    drawText("HOME " + std::to_string(hScore) + " - " + std::to_string(aScore) + " AWAY", { 20, 20 }, sf::Color::White, 24);
+    drawText("TIME: " + formatClock(time), { 20, 50 }, sf::Color::White, 24);
+    drawText(stateNameFromId(state), { (float)Config::WINDOW_WIDTH / 2 - 50, 20 }, sf::Color::Yellow, 30);
 }
