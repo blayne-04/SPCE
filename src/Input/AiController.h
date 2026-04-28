@@ -29,4 +29,3 @@ public:
   - Every UDP datagram starts with uint8 msgType (NetMsg::INPUT or NetMsg::STATE) before
 	the payload, and you branch on it when receiving.
 */
-

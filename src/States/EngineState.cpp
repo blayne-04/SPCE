@@ -249,7 +249,7 @@ void SinglePlayerPlayingState::tick(GameEngine& engine, float dt)
         match.update(frameData, dt);
 }
 
-void SinglePlayerPlayingState::render(GameEngine& engine) 
+void SinglePlayerPlayingState::render(GameEngine& engine)
 {
     mRenderer.renderMatch(engine.getWindow(), engine.getMatch().getWorld(), mMyPlayerID);
 }

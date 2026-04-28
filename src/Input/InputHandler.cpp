@@ -34,7 +34,7 @@ InputPacket InputHandler::getLocalInput(std::uint8_t playerID)
 	out.tackleDown = sf::Keyboard::isKeyPressed(Config::TACKLE_KEY);
 	out.switchDown = sf::Keyboard::isKeyPressed(Config::SWITCH_PLAYER_KEY);
 
-	// If you don't have a lunge key yet, keep it false for MVP.
+	/* Lunge key false for now */
 	out.lungeDown = false;
 
 	return out;
