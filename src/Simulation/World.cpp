@@ -1,5 +1,6 @@
 #include "World.h"
 #include "../Common/Constants.h"
+#include <limits>     // SANTI: std::numeric_limits
 
 // ============================================================================
 // WORLD IMPLEMENTATION
@@ -33,6 +34,11 @@ World::World()
 // SANTI: Called by constructor and also used when a goal is scored (to restart).
 void World::resetKickoff()
 {
+
+	// SANTI: define which goal is left/right once per reset.
+	mHomeGoal.setSide(Config::HOME_TEAM_SIDE); // left goal
+	mAwayGoal.setSide(Config::AWAY_TEAM_SIDE); // right goal
+
 	// 1) Initialize all 8 players (team assignment, goalkeeper flag).
 	for (std::size_t i = 0; i < Config::kNumPlayers; ++i) {
 		const int teamId = (i < 4) ? Config::HOME_TEAM_SIDE : Config::AWAY_TEAM_SIDE;
@@ -102,6 +108,87 @@ void World::writeRawState(GameStatePacket& out) const
 		playerState.isLunging = player.IsLunging();
 	}
 }
+
+
+void World::applyFrameMovement(const FrameInput& frameData, float dt) {
+	if (dt <= 0.f) return;
+
+	for (std::size_t i = 0; i < Config::kNumPlayers; ++i) {
+
+		mPlayers[i].applyMoveDirection(frameData.inputs[i].moveDirection, dt);
+	}
+}
+
+void World::attachBallToOwnerIfAny() {
+	// SANTI: World-level possession mechanic.
+	// MatchStates decide WHEN to call this (usually every tick during Playing).
+	const int ownerId = mBall.getOwner();
+	if (ownerId < 0) return;
+	if (ownerId >= static_cast<int>(Config::kNumPlayers)) return;
+
+	// For now, attach the ball slightly in front of the owner along the X axis.
+	// Home team (0-3) attacks to the right, Away team (4-7) attacks to the left.
+	const float sign = (ownerId < 4) ? 1.f : -1.f;
+	const sf::Vector2f offset(Config::BALL_ATTACH_OFFSET_X * sign, 0.f);
+
+	const sf::Vector2f ownerPos = mPlayers[ownerId].getPosition();
+	mBall.setPosition(ownerPos + offset);
+	mBall.setVelocity(sf::Vector2f(0.f, 0.f));
+}
+
+void World::tryPickupLooseBall(float pickupRadius) {
+	// SANTI: MVP interception/pickup rule.
+	// This assigns ball ownership to the closest player inside pickupRadius.
+	if (pickupRadius <= 0.f) return;
+
+	if (mBall.getOwner() >= 0) return;
+
+	// SANTI: Use Ball's cooldown as a "pickup grace timer" after kicks.
+	// This prevents immediate re-ownership on the same frame a kick happens.
+	if (mBall.getStealCooldown() > 0.f) return;
+
+	const sf::Vector2f ballPos = mBall.getPosition();
+	const float pickupRadiusSq = pickupRadius * pickupRadius;
+
+	int bestId = -1;
+	float bestDistSq = std::numeric_limits<float>::max();
+
+	for (std::size_t i = 0; i < Config::kNumPlayers; ++i) {
+		const sf::Vector2f p = mPlayers[i].getPosition();
+		const sf::Vector2f d = p - ballPos;
+		const float distSq = d.x * d.x + d.y * d.y;
+
+		if (distSq >= bestDistSq) continue;
+		bestDistSq = distSq;
+		bestId = static_cast<int>(i);
+	}
+
+	if (bestId < 0) return;
+	if (bestDistSq > pickupRadiusSq) return;
+
+	mBall.setOwner(bestId);
+	mBall.setVelocity(sf::Vector2f(0.f, 0.f));
+}
+
+void World::overwriteWorldFromPacket(GameStatePacket incomingHostPacket) {
+	// SANTI: Stub/mirror helper.
+	// If you ever want a client-side "mirror World" (instead of rendering directly
+	// from GameStatePacket), this copies the authoritative snapshot into World.
+	//
+	// NOTE: Player velocity/facing are not set here because Player currently
+	// does not expose setters for those fields (only snapshot getters).
+
+	mPitchBounds = incomingHostPacket.pitchBounds;
+
+	mBall.setPosition(incomingHostPacket.ballPosition);
+	mBall.setVelocity(incomingHostPacket.ballVelocity);
+	mBall.setOwner(static_cast<int>(incomingHostPacket.ballOwnerPlayerId));
+
+	for (std::size_t i = 0; i < Config::kNumPlayers; ++i) {
+		mPlayers[i].setPosition(incomingHostPacket.players[i].position);
+	}
+}
+
 
 // ============================================================================
 // SUMMARY OF SANTI CHANGES (Step 4)

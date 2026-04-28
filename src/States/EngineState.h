@@ -2,7 +2,6 @@
 
 #include <SFML/Graphics.hpp>
 #include "../Input/InputHandler.h"
-#include "../Input/AIController.h"
 #include "../Core/Renderer.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -14,10 +13,10 @@ class GameEngine;
  * Base class for all engine states.
  * States handle high-level game flow (menus, gameplay modes, etc.)
  */
-class EngineState {
-public:
-    virtual ~EngineState() = default;
+// input, update logic, and rendering. The GameEngine manages a stack of states.
+// ============================================================================
 
+class EngineState {
     /**
      * Called once per frame. Handle input and update state logic.
      * @param engine - Reference to GameEngine for state transitions and resources
@@ -30,6 +29,9 @@ public:
      * @param engine - Reference to GameEngine for accessing window and resources
      */
     virtual void render(GameEngine& engine) = 0;
+		0;
+	virtual void tick(GameEngine& engine, float dt) = 0;
+	virtual void render(GameEngine& engine) = 0;
 };
 
 class StartMenuState : public EngineState {

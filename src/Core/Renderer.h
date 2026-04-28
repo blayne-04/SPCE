@@ -20,5 +20,5 @@ public:
 
 	// Draw scoreboard, timer, and game state text.
 	// Parameters are extracted from GameStatePacket for convenience.
-	void renderHUD(int homeScore, int awayScore, float matchTimerSec, int stateID);
+	void renderHUD(sf::RenderWindow& window, int homeScore, int awayScore, float matchTimerSec, int stateID);
 };

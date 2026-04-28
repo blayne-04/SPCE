@@ -1,19 +1,13 @@
 #include "EngineState.h"
 #include "../Core/GameEngine.h"
 #include "../Common/Constants.h"
+#include "../Input/AiController.h"
 
 // ============================================================================
 // START MENU STATE
 // ============================================================================
-// Entry point of the game. Allows the player to choose between:
-//   - H key: start as host (HostPlayingState)
-//   - C key: start as client (ClientPlayingState)
-// ============================================================================
 
 void StartMenuState::handleInput(GameEngine& engine, sf::Event& event) {
-	// TODO: Implement full input handling for start menu.
-
-	// SANTI - TEST - DELETE AFTER
 	const auto* key = event.getIf<sf::Event::KeyPressed>();
 	if (!key) return;
 
@@ -42,8 +36,6 @@ void StartMenuState::render(sf::RenderWindow& window) {
 // ============================================================================
 // SETTINGS MENU STATE
 // ============================================================================
-// Placeholder for settings screen (graphics, audio, controls).
-// ============================================================================
 
 void StartMenuState::render(GameEngine& engine) 
 {
@@ -52,19 +44,8 @@ void SettingsMenuState::update(GameEngine& engine, float dt) {
 	// TODO: Implement update logic for settings menu.
 }
 
-void SettingsMenuState::render(sf::RenderWindow& window) {
-	// Draw settings background (DO NOT call window.clear()).
-	sf::RectangleShape background(sf::Vector2f(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT));
-	background.setFillColor(sf::Color(50, 100, 50));  // Dark green.
-	window.draw(background);
-	// TODO: Draw settings UI elements.
-}
-
 // ============================================================================
 // PAUSE MENU STATE
-// ============================================================================
-// Semi-transparent overlay that appears when the player presses P.
-// Typically used to resume the game or return to the main menu.
 // ============================================================================
 
 void PauseMenuState::handleInput(GameEngine& engine, sf::Event& event) {
@@ -85,27 +66,6 @@ void PauseMenuState::render(sf::RenderWindow& window) {
 // ============================================================================
 // CLIENT PLAYING STATE
 // ============================================================================
-// Client (non-authoritative) side of the networked match.
-// Responsibilities:
-//   - Send local inputs to the host (destination).
-//   - Receive authoritative snapshots from the host.
-//   - Render the latest snapshot.
-//
-// Network handshake:
-//   - Initially no snapshot -> use fallback player ID (4).
-//   - Send neutral inputs until first snapshot arrives.
-//   - After snapshot received, use controlledAwayPlayerId from host.
-// ============================================================================
-
-ClientPlayingState::ClientPlayingState()
-{
-	mNetwork.startClient(sf::IpAddress::LocalHost, Config::HOST_PORT);
-
-	// Before first STATE arrives, we have no controlledAwayPlayerId yet.
-	mHaveState = false;
-	mLastState = GameStatePacket{};
-	mNextInputSequence = 0;
-}
 
 void ClientPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
 	if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
@@ -156,8 +116,6 @@ void ClientPlayingState::tick(GameEngine& engine, float dt)
 		std::cout << "Assigned Player ID: " << static_cast<int>(mMyPlayerID) << std::endl;
 	}
 
-	InputPacket clientInput = mInputHandler.pollInput(mMyPlayerID);
-	network.sendPlayerInput(clientInput);
 
 	GameStatePacket latestGameState;
 	if (network.receiveLatestGameState(latestGameState)) {
@@ -165,9 +123,6 @@ void ClientPlayingState::tick(GameEngine& engine, float dt)
 	}
 }
 
-void ClientPlayingState::render(GameEngine& engine) 
-{
-	mRenderer.renderMatch(engine.getWindow(), engine.getMatch().getWorld(), mMyPlayerID);
 void HostPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
 	if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
 		if (keyPressed->code == sf::Keyboard::Key::P) {
