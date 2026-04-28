@@ -30,7 +30,7 @@ file(GLOB_RECURSE GAME_SOURCES
 )
 
 # 4. Define the Target
-add_executable(${PROJECT_NAME} ${GAME_SOURCES} "src/Common/Types.h" "src/Common/Packets.h" "src/Core/GameEngine.h" "src/Core/Renderer.h" "src/Core/Renderer.cpp" "src/Network/NetworkManager.h" "src/Network/NetworkManager.cpp" "src/Input/InputHandler.h" "src/Input/InputHandler.cpp" "src/Input/AIController.h" "src/Input/AIController.cpp"  "src/Objects/Player.h" "src/Objects/Ball.h" "src/Objects/Goal.h" "src/Objects/Goal.cpp" "src/Simulation/Match.h" "src/Simulation/Match.cpp" "src/Simulation/World.h" "src/Simulation/World.cpp" "src/States/MatchStates.h"    "src/States/MatchStates.cpp"   "src/Common/Constants.h" "src/Simulation/PhysicsEngine.h" "src/Simulation/PhysicsEngine.cpp" "src/States/EngineState.h" "src/States/EngineState.cpp" "src/Test.h")
+add_executable(${PROJECT_NAME} ${GAME_SOURCES} "src/Common/Types.h" "src/Common/Packets.h" "src/Core/GameEngine.h" "src/Core/Renderer.h" "src/Core/Renderer.cpp" "src/Network/NetworkManager.h" "src/Network/NetworkManager.cpp" "src/Input/InputHandler.h" "src/Input/InputHandler.cpp" "src/Input/AIController.h" "src/Input/AIController.cpp"  "src/Objects/Player.h" "src/Objects/Ball.h" "src/Objects/Goal.h" "src/Objects/Goal.cpp" "src/Simulation/Match.h" "src/Simulation/Match.cpp" "src/Simulation/World.h" "src/Simulation/World.cpp" "src/States/MatchStates.h"    "src/States/MatchStates.cpp"   "src/Common/Constants.h" "src/Simulation/PhysicsEngine.h" "src/Simulation/PhysicsEngine.cpp" "src/States/EngineState.h" "src/States/EngineState.cpp" "src/Test.h" "src/Input/MenuInputHandler.h" "src/Input/MenuInputHandler.cpp")
 
 # 5. The "EE-Approved" Include Strategy
 # This allows you to #include "Common/Types.h" instead of "../Common/Types.h"
