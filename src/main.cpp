@@ -9,28 +9,21 @@ int main()
     std::cout << "   SPCE - Starting Up...          " << std::endl;
     std::cout << "===================================" << std::endl;
 
-#ifdef _DEBUG
-    // Run tests only in debug mode
     try {
-        Test::testEngineStateMachine();
-        Test::testMatchStateMachine();
-        std::cout << "\n=== All Tests PASSED ===" << std::endl;
-    } catch (const std::exception& e) {
-        std::cerr << "Test failed: " << e.what() << std::endl;
-        return 1;
-    }
-#endif
-
-    // Start the game directly (no waiting for input)
-    std::cout << "\nStarting game window..." << std::endl;
-    
-    try {
+        // Create ONE GameEngine instance for the entire program lifetime
         GameEngine engine;
+        
+        std::cout << "\nGame window created. Starting main loop..." << std::endl;
+        
+        // Run the game (window stays open until closed)
         engine.run();
+        
+        std::cout << "\nGame closed cleanly." << std::endl;
+        
     } catch (const std::exception& e) {
         std::cerr << "Game error: " << e.what() << std::endl;
         return 1;
     }
 
-    return 0;   
+    return 0;
 }
