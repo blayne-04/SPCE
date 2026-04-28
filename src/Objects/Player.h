@@ -1,6 +1,8 @@
 #pragma once
 
 #include "SFML/Graphics.hpp"
+#include "../Common/Constants.h" // SANTI: Config::PLAYER_SPEED, bounds
+#include <algorithm>             // SANTI: std::clamp
 
 // ============================================================================
 // PLAYER CLASS
@@ -27,10 +29,13 @@ public:
 		mTeam = teamID;
 		mIsGoalkeeper = isGoalkeeper;
 
-		// Snapshot-safe defaults (prevent uninitialized data).
 		mIsLunging = false;
 		mVelocity = sf::Vector2f(0.f, 0.f);
-		mFacingDirection = sf::Vector2f(1.f, 0.f);   // Facing right initially.
+		mFacingDirection = sf::Vector2f(1.f, 0.f);
+
+		// SANTI: make Player positions represent the CENTER of the circle.
+		setRadius(Config::PLAYER_HALF_SIZE);
+		setOrigin(sf::Vector2f(getRadius(), getRadius()));
 	}
 
 	// ------------------------------------------------------------------------
@@ -50,6 +55,28 @@ public:
 
 	bool IsGoalkeeper() const { return mIsGoalkeeper; }
 	bool IsLunging() const { return mIsLunging; }
+
+	// SANTI: Apply movement for one tick using DOWN-state input that is already normalized.
+	void applyMoveDirection(const sf::Vector2f& moveDir, float dt) {
+		if (dt <= 0.f) return;
+
+		// Snapshot-friendly velocity (even if you don’t use it for physics yet).
+		mVelocity = moveDir * Config::PLAYER_SPEED;
+
+		const bool isMoving = (moveDir.x != 0.f || moveDir.y != 0.f);
+		if (isMoving) {
+			// moveDir is already normalized by InputHandler.
+			mFacingDirection = moveDir;
+		}
+
+		sf::Vector2f pos = getPosition() + (mVelocity * dt);
+		pos.x = std::clamp(pos.x, Config::PLAYER_MIN_X,
+			Config::PLAYER_MAX_X);
+		pos.y = std::clamp(pos.y, Config::PLAYER_MIN_Y,
+			Config::PLAYER_MAX_Y);
+		setPosition(pos);
+	}
+
 
 private:
 	// ------------------------------------------------------------------------

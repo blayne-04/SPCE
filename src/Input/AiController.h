@@ -19,14 +19,3 @@ public:
 	// GameStatePacket. The AI uses the snapshot to decide movement and actions.
 	InputPacket getAIInput(std::uint8_t playerID, const GameStatePacket& gameStatePacket);
 };
-
-	InputPacket getAIInput(int playerID, const Match& match);
-
-/*
-  SANTI Justification: keeps AI deterministic off the same snapshot the renderer/network uses.
-  - pollIncomingInputs(std::queue<InputPacket>) must become
-		pollIncomingInputs(std::queue<InputPacket>& outQueue).
-  - Every UDP datagram starts with uint8 msgType (NetMsg::INPUT or NetMsg::STATE) before
-	the payload, and you branch on it when receiving.
-*/
-

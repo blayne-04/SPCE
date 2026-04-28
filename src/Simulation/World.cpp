@@ -103,6 +103,36 @@ void World::writeRawState(GameStatePacket& out) const
 	}
 }
 
+
+void World::applyFrameMovement(const FrameInput& frameData, float dt) {
+	if (dt <= 0.f) return;
+
+	for (std::size_t i = 0; i < Config::kNumPlayers; ++i) {
+
+		mPlayers[i].applyMoveDirection(frameData.inputs[i].moveDirection, dt);
+	}
+}
+
+void World::overwriteWorldFromPacket(GameStatePacket incomingHostPacket) {
+	// SANTI: Stub/mirror helper.
+	// If you ever want a client-side "mirror World" (instead of rendering directly
+	// from GameStatePacket), this copies the authoritative snapshot into World.
+	//
+	// NOTE: Player velocity/facing are not set here because Player currently
+	// does not expose setters for those fields (only snapshot getters).
+
+	mPitchBounds = incomingHostPacket.pitchBounds;
+
+	mBall.setPosition(incomingHostPacket.ballPosition);
+	mBall.setVelocity(incomingHostPacket.ballVelocity);
+	mBall.setOwner(static_cast<int>(incomingHostPacket.ballOwnerPlayerId));
+
+	for (std::size_t i = 0; i < Config::kNumPlayers; ++i) {
+		mPlayers[i].setPosition(incomingHostPacket.players[i].position);
+	}
+}
+
+
 // ============================================================================
 // SUMMARY OF SANTI CHANGES (Step 4)
 // ============================================================================

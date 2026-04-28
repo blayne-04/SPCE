@@ -1,19 +1,26 @@
 #include "EngineState.h"
 #include "../Core/GameEngine.h"
 #include "../Common/Constants.h"
+#include "../Input/AiController.h"
+
+#include <memory>
+
+namespace {
+	void drawSolidBackground(sf::RenderWindow& window, sf::Color color) {
+		sf::RectangleShape background(sf::Vector2f(
+			static_cast<float>(Config::WINDOW_WIDTH),
+			static_cast<float>(Config::WINDOW_HEIGHT)
+		));
+		background.setFillColor(color);
+		window.draw(background);
+	}
+} // namespace
 
 // ============================================================================
-// START MENU STATE
-// ============================================================================
-// Entry point of the game. Allows the player to choose between:
-//   - H key: start as host (HostPlayingState)
-//   - C key: start as client (ClientPlayingState)
+// StartMenuState
 // ============================================================================
 
 void StartMenuState::handleInput(GameEngine& engine, sf::Event& event) {
-	// TODO: Implement full input handling for start menu.
-
-	// SANTI - TEST - DELETE AFTER
 	const auto* key = event.getIf<sf::Event::KeyPressed>();
 	if (!key) return;
 
@@ -21,105 +28,83 @@ void StartMenuState::handleInput(GameEngine& engine, sf::Event& event) {
 		engine.transitionTo(std::make_unique<HostPlayingState>());
 		return;
 	}
+
 	if (key->code == sf::Keyboard::Key::C) {
 		engine.transitionTo(std::make_unique<ClientPlayingState>());
 		return;
 	}
 }
 
-void StartMenuState::update(GameEngine& engine, float dt) {
-	// TODO: Implement update logic for start menu (animations, etc.).
-}
+void StartMenuState::tick(GameEngine&, float) {}
 
-void StartMenuState::render(sf::RenderWindow& window) {
-	// Draw menu background (DO NOT call window.clear() here).
-	sf::RectangleShape background(sf::Vector2f(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT));
-	background.setFillColor(sf::Color(50, 50, 100));  // Dark blue.
-	window.draw(background);
-	// TODO: Draw menu elements (text, buttons, etc.).
+void StartMenuState::render(GameEngine& engine) {
+	drawSolidBackground(engine.getWindow(), sf::Color(50, 50, 100));
 }
 
 // ============================================================================
-// SETTINGS MENU STATE
-// ============================================================================
-// Placeholder for settings screen (graphics, audio, controls).
+// SettingsMenuState (placeholder)
 // ============================================================================
 
-void StartMenuState::render(GameEngine& engine) 
-{
+void SettingsMenuState::handleInput(GameEngine&, sf::Event&) {}
+void SettingsMenuState::tick(GameEngine&, float) {}
 
-void SettingsMenuState::update(GameEngine& engine, float dt) {
-	// TODO: Implement update logic for settings menu.
-}
-
-void SettingsMenuState::render(sf::RenderWindow& window) {
-	// Draw settings background (DO NOT call window.clear()).
-	sf::RectangleShape background(sf::Vector2f(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT));
-	background.setFillColor(sf::Color(50, 100, 50));  // Dark green.
-	window.draw(background);
-	// TODO: Draw settings UI elements.
+void SettingsMenuState::render(GameEngine& engine) {
+	drawSolidBackground(engine.getWindow(), sf::Color(50, 100, 50));
 }
 
 // ============================================================================
-// PAUSE MENU STATE
-// ============================================================================
-// Semi-transparent overlay that appears when the player presses P.
-// Typically used to resume the game or return to the main menu.
+// PauseMenuState (placeholder)
 // ============================================================================
 
-void PauseMenuState::handleInput(GameEngine& engine, sf::Event& event) {
-	// TODO: Implement input handling for pause menu.
-}
+void PauseMenuState::handleInput(GameEngine&, sf::Event&) {}
+void PauseMenuState::tick(GameEngine&, float) {}
 
-void SettingsMenuState::render(GameEngine& engine) 
-{
-
-void PauseMenuState::render(sf::RenderWindow& window) {
-	// Draw semi-transparent overlay (DO NOT call window.clear()).
-	sf::RectangleShape overlay(sf::Vector2f(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT));
-	overlay.setFillColor(sf::Color(0, 0, 0, 180));  // Black with 180 alpha.
-	window.draw(overlay);
-	// TODO: Draw pause menu options.
+void PauseMenuState::render(GameEngine& engine) {
+	// Semi-transparent overlay. GameEngine renders states bottom-to-top.
+	drawSolidBackground(engine.getWindow(), sf::Color(0, 0, 0, 180));
 }
 
 // ============================================================================
-// CLIENT PLAYING STATE
+// ClientPlayingState (placeholder)
 // ============================================================================
-// Client (non-authoritative) side of the networked match.
-// Responsibilities:
-//   - Send local inputs to the host (destination).
-//   - Receive authoritative snapshots from the host.
-//   - Render the latest snapshot.
-//
-// Network handshake:
-//   - Initially no snapshot -> use fallback player ID (4).
-//   - Send neutral inputs until first snapshot arrives.
-//   - After snapshot received, use controlledAwayPlayerId from host.
-// ============================================================================
-
-ClientPlayingState::ClientPlayingState()
-{
-	mNetwork.startClient(sf::IpAddress::LocalHost, Config::HOST_PORT);
-
-	// Before first STATE arrives, we have no controlledAwayPlayerId yet.
-	mHaveState = false;
-	mLastState = GameStatePacket{};
-	mNextInputSequence = 0;
-}
 
 void ClientPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
-	if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
-		if (keyPressed->code == sf::Keyboard::Key::P) {
-			engine.pushState(std::make_unique<PauseMenuState>());
-		}
+	const auto* key = event.getIf<sf::Event::KeyPressed>();
+	if (!key) return;
+
+	if (key->code == sf::Keyboard::Key::P) {
+		engine.pushState(std::make_unique<PauseMenuState>());
+		return;
 	}
 }
 
-void PauseMenuState::render(GameEngine& engine)
-{
+void ClientPlayingState::tick(GameEngine& engine, float dt) {
+	auto& net = engine.getNetwork();
 
-	if (!mHaveState) {
-		// Handshake: send a neutral INPUT so the host learns our (ip, port).
+	// Start client socket once (binds AnyPort, stores host ip:port).
+	if (!mStarted) {
+		net.startClient(sf::IpAddress::LocalHost, Config::HOST_PORT);
+		mStarted = true;
+
+		mHaveState = false;
+		mNextInputSequence = 0;
+		mLastState = GameStatePacket{};
+	}
+
+	// If we haven't received a snapshot, we don't know controlledAwayPlayerId yet.
+	constexpr std::uint8_t kFallbackAwayPlayerId = 4;
+	const std::uint8_t playerId =
+		mHaveState ? mLastState.controlledAwayPlayerId :
+		kFallbackAwayPlayerId;
+
+	InputPacket input{};
+
+	if (mHaveState) {
+		// Normal: send keyboard DOWN-state every tick.
+		input = mInput.getLocalInput(playerId);
+	}
+	else {
+		// Handshake: send "neutral" INPUT so host learns our (ip, port).
 		input.playerId = playerId;
 		input.moveDirection = sf::Vector2f(0.f, 0.f);
 		input.shootDown = false;
@@ -128,128 +113,123 @@ void PauseMenuState::render(GameEngine& engine)
 		input.switchDown = false;
 		input.lungeDown = false;
 	}
-	else {
-		// Normal: send real keyboard DOWN-state.
-		input = mInput.getLocalInput(playerId);
-	}
 
-	// Always stamp routing + sequencing last so it's consistent.
+	// Always stamp routing + sequencing last.
 	input.playerId = playerId;
 	input.inputSequence = mNextInputSequence++;
 
-void ClientPlayingState::tick(GameEngine& engine, float dt) 
-{
-	auto& network = engine.getNetwork();
+	net.sendPlayerInput(input);
 
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
-		engine.pushState(std::make_unique<PauseMenuState>());
+	// Drain socket; keep the newest STATE by frameNumber.
+	if (net.receiveLatestGameState(mLastState)) {
+		mHaveState = true;
 	}
 }
 
-	if (mMyPlayerID == 255) {
-		network.sendJoinRequest();
-
-		if (!network.pollIdAssignment(mMyPlayerID)) {
-			return;
-		}
-
-		std::cout << "Assigned Player ID: " << static_cast<int>(mMyPlayerID) << std::endl;
-	}
-
-	InputPacket clientInput = mInputHandler.pollInput(mMyPlayerID);
-	network.sendPlayerInput(clientInput);
-
-	GameStatePacket latestGameState;
-	if (network.receiveLatestGameState(latestGameState)) {
-		engine.getMatch().overwriteWorld(latestGameState);
-	}
+void ClientPlayingState::render(GameEngine& engine) {
+	mRenderer.render(engine.getWindow(), mLastState);
 }
 
-void ClientPlayingState::render(GameEngine& engine) 
-{
-	mRenderer.renderMatch(engine.getWindow(), engine.getMatch().getWorld(), mMyPlayerID);
+
+// ============================================================================
+// HostPlayingState (placeholder)
+// ============================================================================
+
 void HostPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
-	if (const auto* keyPressed = event.getIf<sf::Event::KeyPressed>()) {
-		if (keyPressed->code == sf::Keyboard::Key::P) {
-			engine.pushState(std::make_unique<PauseMenuState>());
-		}
+	const auto* key = event.getIf<sf::Event::KeyPressed>();
+	if (!key) return;
+
+	if (key->code == sf::Keyboard::Key::P) {
+		engine.pushState(std::make_unique<PauseMenuState>());
+		return;
 	}
 }
 
-void HostPlayingState::update(GameEngine& engine, float dt) {
-	std::queue<InputPacket> incoming;
-	mNetwork.pollIncomingInputs(incoming); // learns client ip:port on first INPUT.
-
-void HostPlayingState::tick(GameEngine& engine, float dt) 
-{
-	auto& network = engine.getNetwork();
+void HostPlayingState::tick(GameEngine& engine, float dt) {
+	auto& net = engine.getNetwork();
 	auto& match = engine.getMatch();
 
-    /* Intake host input in slot 0 */
-	FrameInput frameData;
-	frameData.inputs[0] = mInputHandler.pollInput(HOST_ID);
+	if (!mStarted) {
+		net.startHost(Config::HOST_PORT);
+		mStarted = true;
 
-    /* Track human player slots */
-    bool isHuman[10] = { false };
-    isHuman[0] = true;
-    
-    /* Collect client packets */
-    std::queue<InputPacket> remotePackets;
-    network.pollIncomingInputs(remotePackets);
+		// SANTI: for now we hard-reserve player 0 (host) and player 4 (client).
+		match.setControlledPlayerIds(0, 4);
+	}
 
-    /* While there's incoming packets, process them */
-    while (!remotePackets.empty()) {
-        InputPacket p = remotePackets.front();
-        remotePackets.pop();
+	// SANTI: snapshot at the START of the tick for AI decisions.
+	// AI reads the same data contract as networking/rendering (GameStatePacket).
+	GameStatePacket snapshotBefore{};
+	match.getGameState(snapshotBefore);
 
-		if (p.playerId >= 10) { 
-            std::cout << "Received packet with invalid player ID: " << static_cast<int>(p.playerId) << std::endl;
-            continue;
-        }
+	FrameInput frame{};
 
-        frameData.inputs[p.playerId] = p;
-        isHuman[p.playerId] = true;
-    }
+	// SANTI: track which player slots are human-controlled this tick.
+	std::array<bool, Config::kNumPlayers> isHuman{};
+	isHuman.fill(false);
 
-    /* Fill gaps with packets from AI */
-    for (uint8_t i = 0; i < 10; ++i) {
-        if (!isHuman[i]) {
-            /* Pass Id and match to each AI input call */
-            frameData.inputs[i] = mAiController.getAIInput(i, match.getWorld());
-        }
-    }
+	// Host human
+	isHuman[0] = true;
 
-    /* Call the update for match */
-    match.update(frameData, dt);
+	// SANTI: reserve client slot so AI won't move it before first INPUT arrives.
+	isHuman[4] = true;
 
-    /* Send update across the network to all clients */
-    network.sendGameState(match.getStatePacket());
+	// Local host controls player 0.
+	frame.inputs[0] = mInput.getLocalInput(0);
+	frame.inputs[0].playerId = 0;
+
+	// Drain incoming client INPUT packets.
+	std::queue<InputPacket> incoming;
+	net.pollIncomingInputs(incoming);
+
+	while (!incoming.empty()) {
+		const InputPacket p = incoming.front();
+		incoming.pop();
+
+		if (p.playerId >= Config::kNumPlayers) continue;
+
+		frame.inputs[p.playerId] = p;
+		isHuman[p.playerId] = true;
+	}
+
+	// SANTI: fill the remaining slots with AI-generated inputs.
+	for (std::size_t i = 0; i < Config::kNumPlayers; ++i) {
+		if (isHuman[i]) continue;
+
+		frame.inputs[i] = mAi.getAIInput(static_cast<std::uint8_t>(i), snapshotBefore);
+		frame.inputs[i].playerId = static_cast<std::uint8_t>(i);
+	}
+
+	// Referee step.
+	match.update(frame, dt);
+
+	// Publish snapshot for render + networking.
+	match.getGameState(mLastState);
+	net.sendGameState(mLastState);
 }
 
-void HostPlayingState::render(GameEngine& engine) 
-{
-	mRenderer.renderMatch(engine.getWindow(), engine.getMatch().getWorld(), mMyPlayerID);
+
+void HostPlayingState::render(GameEngine& engine) {
+	mRenderer.render(engine.getWindow(), mLastState);
 }
 
-/* ========================================= */
-/*             SINGLEPLAYER                  */
-/* ========================================= */
+// ============================================================================
+// SinglePlayerPlayingState (placeholder)
+// ============================================================================
 
-void SinglePlayerPlayingState::tick(GameEngine& engine, float dt) 
-{
-    	auto& match = engine.getMatch();
+void SinglePlayerPlayingState::handleInput(GameEngine& engine, sf::Event& event) {
+	const auto* key = event.getIf<sf::Event::KeyPressed>();
+	if (!key) return;
 
-		FrameInput frameData;
-        frameData.inputs[0] = mInputHandler.pollInput(HOST_ID);
-
-        for(uint8_t i = 1; i < 10; ++i) {
-            frameData.inputs[i] = mAiController.getAIInput(i, match.getWorld());
-		}
-
-        match.update(frameData, dt);
+	if (key->code == sf::Keyboard::Key::P) {
+		engine.pushState(std::make_unique<PauseMenuState>());
+		return;
+	}
 }
 
-void SinglePlayerPlayingState::render(GameEngine& engine) 
-{
-    mRenderer.renderMatch(engine.getWindow(), engine.getMatch().getWorld(), mMyPlayerID);
+void SinglePlayerPlayingState::tick(GameEngine&, float) {}
+
+void SinglePlayerPlayingState::render(GameEngine& engine) {
+	drawSolidBackground(engine.getWindow(), sf::Color::Green);
 }
+

@@ -53,8 +53,13 @@ public:
 
 	// Const access to the ball.
 	const Ball& ball() const { return mBall; }
-    void overwriteWorldFromPacket(GameStatePacket incomingHostPacket);
-    // Your methods here...
+	void overwriteWorldFromPacket(GameStatePacket incomingHostPacket);
+	// Your methods here...
+
+
+	// SANTI: Step 5 helper. Moves all players based on FrameInput.
+	void applyFrameMovement(const FrameInput& frameData, float dt);
+
 
 private:
 	// ------------------------------------------------------------------------
