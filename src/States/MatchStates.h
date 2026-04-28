@@ -1,5 +1,6 @@
-#pragma once
+﻿#pragma once
 #include "../Common/Packets.h"
+#include <cstdint> // SANTI: for std::uint8_t
 
 /* Forward declaration to avoid circular dependency */
 class Match;
@@ -9,18 +10,22 @@ class Match;
 /* ========================================= */
 class MatchState {
 public:
-    MatchState() = default;
+	MatchState() = default;
 
-    virtual ~MatchState() = default;
+	virtual ~MatchState() = default;
 
-    /* Contextual update function, called by Match to delegate frame updates to the current state of the program */
-    virtual void update(Match& match, const FrameInput& frameData) = 0;
+	// SANTI: Needed so Match can fill GameStatePacket.currentState.
+	virtual std::uint8_t packetStateId() const = 0;
 
-    /* Contextual function to be called when entering a new state */
-    virtual void onEnter(Match& match) = 0;
+	/* Contextual update function, called by Match to delegate frame updates to the current state of the program */
+	// SANTI: dt is required for matchTimerSec counting up.
+	virtual void update(Match& match, const FrameInput& frameData, float dt) = 0;
+
+	/* Contextual function to be called when entering a new state */
+	virtual void onEnter(Match& match) = 0;
 
 	/* Contextual function to be called when exiting a state */
-    virtual void onExit(Match& match) = 0;
+	virtual void onExit(Match& match) = 0;
 };
 
 /* ========================================= */
@@ -30,10 +35,11 @@ public:
 class GameOverState : public MatchState
 {
 public:
-    GameOverState();
-    void update(Match& match, const FrameInput& frameData) override;
-    void onEnter(Match& match) override;
-    void onExit(Match& match) override;
+	GameOverState();
+	std::uint8_t packetStateId() const override { return 3; } // SANTI
+	void update(Match& match, const FrameInput& frameData, float dt) override;
+	void onEnter(Match& match) override;
+	void onExit(Match& match) override;
 };
 
 /* ========================================= */
@@ -42,20 +48,22 @@ public:
 class KickoffState : public MatchState
 {
 public:
-    KickoffState();
-    void update(Match& match, const FrameInput& frameData) override;
-    void onEnter(Match& match) override;
-    void onExit(Match& match) override;
+	KickoffState();
+	std::uint8_t packetStateId() const override { return 0; } // SANTI
+	void update(Match& match, const FrameInput& frameData, float dt) override;
+	void onEnter(Match& match) override;
+	void onExit(Match& match) override;
 };
 
 /* ========================================= */
 /*                PLAYING                    */
 /* ========================================= */
-class PlayingState: public MatchState
+class PlayingState : public MatchState
 {
-    public:
-    PlayingState();
-    void update(Match& match, const FrameInput& frameData) override;
-    void onEnter(Match& match) override;
-    void onExit(Match& match) override;
+public:
+	PlayingState();
+	std::uint8_t packetStateId() const override { return 1; } // SANTI
+	void update(Match& match, const FrameInput& frameData, float dt) override;
+	void onEnter(Match& match) override;
+	void onExit(Match& match) override;
 };

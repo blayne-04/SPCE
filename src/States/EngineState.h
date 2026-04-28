@@ -13,13 +13,16 @@ inline constexpr std::uint8_t HOST_ID = 0; // Reserve host player ID
 /* Forward Declaration */
 class GameEngine;
 
-/**
- * Base class for all engine states.
- * States handle high-level game flow (menus, gameplay modes, etc.)
- */
+// ============================================================================
+// BASE ENGINE STATE (ABSTRACT)
+// ============================================================================
+// All game states derive from this interface. Each state handles its own
+// input, update logic, and rendering. The GameEngine manages a stack of states.
+// ============================================================================
+
 class EngineState {
 public:
-    virtual ~EngineState() = default;
+	virtual ~EngineState() = default;
 
     /**
      * Called once per frame. Handle input and update state logic.
@@ -35,47 +38,85 @@ public:
     virtual void render(GameEngine& engine) = 0;
 };
 
+// ============================================================================
+// START MENU STATE
+// ============================================================================
+// Initial menu. Handles H (host) and C (client) keys to start networking.
+// ============================================================================
+
 class StartMenuState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
     void render(GameEngine& engine) override;
 };
+        Exit
+    };
+
+    void tick(GameEngine& engine, float dt) override;
+    void render(GameEngine& engine) override;
+        Join
+    };
 
 class SettingsMenuState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
-    void render(GameEngine& engine) override;
+    void render(sf::RenderWindow& window) override;
 };
+
+// ============================================================================
+    void tick(GameEngine& engine, float dt) override;
+    void render(GameEngine& engine) override;
+// Semi-transparent overlay. Typically pushed on top of a playing state.
+// ============================================================================
 
 class PauseMenuState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
-    void render(GameEngine& engine) override;
+    void render(sf::RenderWindow& window) override;
 };
 
-class ClientPlayingState : public EngineState {
-public:
+// ============================================================================
+// CLIENT PLAYING STATE
+// ============================================================================
+// Non-authoritative side of networked match.
+// Responsibilities:
     void tick(GameEngine& engine, float dt) override;
     void render(GameEngine& engine) override;
 private:
     InputHandler mInputHandler;
     std::uint8_t mMyPlayerID = 255;
     Renderer mRenderer;
-};
 
-class HostPlayingState : public EngineState {
+class ClientPlayingState : public EngineState {
 public:
     void tick(GameEngine& engine, float dt) override;
+    void render(sf::RenderWindow& window) override;
+private: 
+    InputHandler mInputHandler;
+};
+
+// ============================================================================
+// HOST PLAYING STATE
+// ============================================================================
+// Authoritative side of networked match.
+// Responsibilities:
+    void tick(GameEngine& engine, float dt) override;
     void render(GameEngine& engine) override;
-private:
+//   - Send authoritative snapshots back to client.
     InputHandler mInputHandler;
     AIController mAiController;
     std::uint8_t mMyPlayerID = 1;
     Renderer mRenderer;
+
+class HostPlayingState : public EngineState {
+public:
+    void tick(GameEngine& engine, float dt) override;
+    void render(sf::RenderWindow& window) override;
+private:
+    InputHandler mInputHandler;
 };
 
-class SinglePlayerPlayingState : public EngineState {
-public:
+// ============================================================================
     void tick(GameEngine& engine, float dt) override;
     void render(GameEngine& engine) override;
 private:
@@ -83,4 +124,10 @@ private:
 	AIController mAiController;
     std::uint8_t mMyPlayerID = 1;
     Renderer mRenderer;
+};class SinglePlayerPlayingState : public EngineState {
+public:
+    void tick(GameEngine& engine, float dt) override;
+    void render(sf::RenderWindow& window) override;
+private:
+    InputHandler mInputHandler;
 };

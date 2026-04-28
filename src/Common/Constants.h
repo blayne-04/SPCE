@@ -1,14 +1,35 @@
 #pragma once
 
-#include <SFML/Network.hpp>
+// SANTI: Fixed includes.
+#include <SFML/System/Vector2.hpp>
+#include <SFML/Window/Keyboard.hpp>
+
+// SANTI: std::size_t lives in <cstddef> (there is no <size_t> header).
+#include <cstddef>
+
+// ============================================================================
+// CONFIGURATION NAMESPACE
+// ============================================================================
+// Central location for all game constants: window, field, physics, AI, input,
+// networking, etc. Change values here to tweak gameplay.
+// ============================================================================
 
 namespace Config {
+
+	// ----------------------------------------------------------------------------
+	// WINDOW & FIELD DIMENSIONS
+	// ----------------------------------------------------------------------------
+
 	constexpr unsigned int WINDOW_WIDTH = 800;
 	constexpr unsigned int WINDOW_HEIGHT = 600;
 	inline const sf::Vector2u WINDOW_SIZE(WINDOW_WIDTH, WINDOW_HEIGHT);
 
 	constexpr float FIELD_CENTER_X = WINDOW_WIDTH / 2.f;
 	constexpr float FIELD_CENTER_Y = WINDOW_HEIGHT / 2.f;
+
+	// ----------------------------------------------------------------------------
+	// GOAL GEOMETRY
+	// ----------------------------------------------------------------------------
 
 	constexpr float GOAL_WIDTH = 20.f;
 	constexpr float GOAL_HEIGHT = 100.f;
@@ -18,6 +39,10 @@ namespace Config {
 	constexpr float GOAL_Y_BOTTOM = GOAL_Y_TOP + GOAL_HEIGHT;
 	constexpr float GOAL_CENTER_Y = (GOAL_Y_TOP + GOAL_Y_BOTTOM) / 2.f;
 
+	// ----------------------------------------------------------------------------
+	// PLAYER PHYSICS & MOVEMENT
+	// ----------------------------------------------------------------------------
+
 	constexpr float PLAYER_SPEED = 200.f;
 	constexpr float PLAYER_SIZE = 20.f;
 	constexpr float PLAYER_HALF_SIZE = PLAYER_SIZE / 2.f;
@@ -26,6 +51,13 @@ namespace Config {
 	constexpr float PLAYER_MIN_Y = PLAYER_HALF_SIZE;
 	constexpr float PLAYER_MAX_Y = WINDOW_HEIGHT - PLAYER_HALF_SIZE;
 	constexpr float BALL_ATTACH_OFFSET_X = PLAYER_HALF_SIZE;
+	constexpr float PLAYER_MIN_SEPARATION = PLAYER_SIZE * 0.95f;
+	constexpr float PLAYER_SEPARATION_PUSH = 125.f;
+
+	// ----------------------------------------------------------------------------
+	// AI BEHAVIOR (General)
+	// ----------------------------------------------------------------------------
+
 	constexpr float AI_SPEED = 150.f;
 	constexpr float AI_FORMATION_BALL_INFLUENCE = 0.25f;
 	constexpr float AI_ATTACKING_SHAPE_BALL_INFLUENCE = 0.15f;
@@ -42,31 +74,19 @@ namespace Config {
 	constexpr float AI_LANE_WIDE_Y = 150.f;
 	constexpr float AI_LANE_HALFSPACE_Y = 80.f;
 	constexpr float AI_LANE_DIVERSITY_MIN_DISTANCE = 55.f;
+
+	// AI Speed Multipliers
 	constexpr float AI_PRESS_SPEED_MULTIPLIER = 1.0f;
 	constexpr float AI_SUPPORT_SPEED_MULTIPLIER = 0.9f;
 	constexpr float AI_HOLD_SPEED_MULTIPLIER = 0.75f;
-	constexpr float AI_TARGET_REACHED_EPSILON = 1.f;
-	constexpr float AI_CONTAIN_OFFSET_X = 70.f;
 	constexpr float AI_PRESS_IN_OPP_HALF_SPEED_MULTIPLIER = 0.55f;
 	constexpr float AI_ATTACK_RUN_SPEED_MULTIPLIER = 1.05f;
-
-	constexpr float PLAYER_MIN_SEPARATION = PLAYER_SIZE * 0.95f;
-	constexpr float PLAYER_SEPARATION_PUSH = 125.f;
-
-	constexpr float BALL_RADIUS = 8.f;
-	constexpr float BALL_FRICTION = 0.98f;
-	constexpr float BALL_STEAL_RADIUS = 26.f;
-	constexpr float BALL_STEAL_COOLDOWN_SECONDS = 0.45f;
-	constexpr float AI_AUTO_STEAL_ATTEMPTS_PER_SECOND = 2.4f;
-	constexpr float HUMAN_MANUAL_STEAL_ATTEMPTS_PER_SECOND = 7.5f;
-	constexpr float HUMAN_MANUAL_TACKLE_RADIUS = 44.f;
-	constexpr float BALL_POSSESSION_PROTECTION_SECONDS = 0.45f;
-	constexpr float STEALER_RETRY_COOLDOWN_SECONDS = 0.35f;
-
-	constexpr float AI_BALL_ACTION_INTERVAL_SECONDS = 0.25f;
-	constexpr float AI_ATTACK_INTENT_DURATION_SECONDS = 0.8f;
 	constexpr float AI_BALL_CARRY_SPEED_MULTIPLIER = 0.8f;
 	constexpr float AI_BALL_CARRY_UNDER_PRESSURE_SPEED_MULTIPLIER = 0.55f;
+
+	// AI Positioning & Decision
+	constexpr float AI_TARGET_REACHED_EPSILON = 1.f;
+	constexpr float AI_CONTAIN_OFFSET_X = 70.f;
 	constexpr float AI_BALL_CARRY_CENTERING = 0.55f;
 	constexpr float AI_BALL_CARRY_EVASION_WEIGHT = 0.75f;
 	constexpr float AI_BALL_CARRY_MIN_FORWARD_DOT = 0.45f;
@@ -81,6 +101,27 @@ namespace Config {
 	constexpr float AI_FINAL_THIRD_FORCE_ACTION_SECONDS = 0.6f;
 	constexpr float AI_SHOT_POST_TARGET_MARGIN_Y = 18.f;
 	constexpr float AI_ATTACKING_PROGRESS_FINAL_THIRD = 0.67f;
+	constexpr float AI_ATTACK_INTENT_DURATION_SECONDS = 0.8f;
+	constexpr float AI_BALL_ACTION_INTERVAL_SECONDS = 0.25f;
+
+	// ----------------------------------------------------------------------------
+	// BALL PHYSICS & STEALING
+	// ----------------------------------------------------------------------------
+
+	constexpr float BALL_RADIUS = 8.f;
+	constexpr float BALL_FRICTION = 0.98f;
+	constexpr float BALL_STEAL_RADIUS = 26.f;
+	constexpr float BALL_STEAL_COOLDOWN_SECONDS = 0.45f;
+	constexpr float AI_AUTO_STEAL_ATTEMPTS_PER_SECOND = 2.4f;
+	constexpr float HUMAN_MANUAL_STEAL_ATTEMPTS_PER_SECOND = 7.5f;
+	constexpr float HUMAN_MANUAL_TACKLE_RADIUS = 44.f;
+	constexpr float BALL_POSSESSION_PROTECTION_SECONDS = 0.45f;
+	constexpr float STEALER_RETRY_COOLDOWN_SECONDS = 0.35f;
+
+	// ----------------------------------------------------------------------------
+	// PASSING & SHOOTING
+	// ----------------------------------------------------------------------------
+
 	constexpr float PASS_FORCE = 300.f;
 	constexpr float PASS_FORCE_MIN = 260.f;
 	constexpr float PASS_FORCE_MAX = 640.f;
@@ -88,6 +129,9 @@ namespace Config {
 	constexpr float GUARANTEED_PASS_SPEED = 900.f;
 	constexpr float GUARANTEED_PASS_MIN_DURATION = 0.10f;
 	constexpr float PASS_INTERCEPTION_CORRIDOR_RADIUS = 18.f;
+	constexpr float PASS_CONTROL_SWITCH_TIMEOUT_SECONDS = 1.25f;
+	constexpr float PASS_TARGET_ALIGNMENT_MIN = 0.2f;
+
 	constexpr float SHOOT_FORCE = 500.f;
 	constexpr float SHOOT_FORCE_MIN = 280.f;
 	constexpr float SHOOT_FORCE_MAX = 620.f;
@@ -97,6 +141,10 @@ namespace Config {
 	constexpr float GUARANTEED_SHOT_SPEED_MAX = 1400.f;
 	constexpr float SHOT_INTERCEPTION_CORRIDOR_RADIUS = 20.f;
 	constexpr float POST_KICK_PICKUP_DELAY_SECONDS = 0.12f;
+
+	// ----------------------------------------------------------------------------
+	// TEAM & FORMATION
+	// ----------------------------------------------------------------------------
 
 	constexpr int OUTFIELD_PLAYERS = 3;
 	constexpr float GOALKEEPER_X_LEFT = 60.f;
@@ -108,6 +156,10 @@ namespace Config {
 	constexpr float FORMATION_PLAYER_SPACING_X = 60.f;
 	constexpr float FORMATION_CENTER_Y = 300.f;
 	constexpr float FORMATION_PLAYER_SPACING_Y = 40.f;
+
+	// ----------------------------------------------------------------------------
+	// MATCH RULES & UI
+	// ----------------------------------------------------------------------------
 
 	constexpr float MATCH_DURATION_SECONDS = 180.f;
 	constexpr int WIN_GOAL_LIMIT = 5;
@@ -126,10 +178,40 @@ namespace Config {
 	constexpr float DEFAULT_KICK_DIRECTION_X = 1.f;
 	constexpr float VECTOR_NORMALIZATION_EPSILON = 0.01f;
 
+	// ----------------------------------------------------------------------------
+	// INPUT KEY BINDINGS (QWERTY layout)
+	// ----------------------------------------------------------------------------
+
+	// Left hand (movement)
+	inline constexpr sf::Keyboard::Key MOVE_UP_KEY = sf::Keyboard::Key::W;
+	inline constexpr sf::Keyboard::Key MOVE_DOWN_KEY = sf::Keyboard::Key::S;
+	inline constexpr sf::Keyboard::Key MOVE_LEFT_KEY = sf::Keyboard::Key::A;
+	inline constexpr sf::Keyboard::Key MOVE_RIGHT_KEY = sf::Keyboard::Key::D;
+
+	// Right hand (actions) - JKL cluster
+	inline constexpr sf::Keyboard::Key SHOOT_KEY = sf::Keyboard::Key::K;           // primary shot
+	inline constexpr sf::Keyboard::Key PASS_KEY = sf::Keyboard::Key::J;            // short pass
+	inline constexpr sf::Keyboard::Key TACKLE_KEY = sf::Keyboard::Key::L;          // standing tackle
+	inline constexpr sf::Keyboard::Key SWITCH_PLAYER_KEY = sf::Keyboard::Key::I;   // change controlled player
+
 	// Quit (left hand, easy access)
 	inline constexpr sf::Keyboard::Key QUIT_KEY = sf::Keyboard::Key::Q;
 
-	constexpr float PASS_CONTROL_SWITCH_TIMEOUT_SECONDS = 1.25f;
-	constexpr float PASS_TARGET_ALIGNMENT_MIN = 0.2f;
+	// ----------------------------------------------------------------------------
+	// ASSETS
+	// ----------------------------------------------------------------------------
 
 	constexpr const char* FONT_PATH = "../assets/fonts/arial.ttf";
+
+	// ----------------------------------------------------------------------------
+	// NETWORKING (SANTI: just added HOST_PORT)
+	// ----------------------------------------------------------------------------
+
+	// One place to change the port for host + client.
+	constexpr unsigned short HOST_PORT = 54000;
+
+	// SANTI: changed from 10 to 8 players (4 per team)
+	inline constexpr std::size_t kNumPlayers = 8;
+
+} // namespace Config
+
