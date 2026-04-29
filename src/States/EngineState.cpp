@@ -96,17 +96,135 @@ bool StartMenuState::isSpriteClicked(sf::Sprite& sprite, sf::RenderWindow& windo
 /**************************
 * SETTINGS MENU STATE
 **************************/
-
-void SettingsMenuState::tick(GameEngine& engine, float dt) 
+SettingsMenuState::SettingsMenuState()
 {
-	/* TODO: Implement update logic for settings menu */
+	mBgTex.loadFromFile("assets/backgrounds/homeMenu.png");
+	mPanelTex.loadFromFile("assets/ui/soccer_ui/panel.png");
+	mSettingWordsTex.loadFromFile("assets/ui/soccer_ui/settings_wording.png");
+	mExitTex.loadFromFile("assets/ui/soccer_ui/exit.png");
+
+	mVolumeHighTex.loadFromFile("assets/ui/soccer_ui/audio_max.png");
+	mVolumeMidTex.loadFromFile("assets/ui/soccer_ui/audio_mid.png");
+	mVolumeLowTex.loadFromFile("assets/ui/soccer_ui/audio_low.png");
+
+	mBrightnessHighTex.loadFromFile("assets/ui/soccer_ui/brightness_max.png");
+	mBrightnessMidTex.loadFromFile("assets/ui/soccer_ui/brightness_mid.png");
+	mBrightnessLowTex.loadFromFile("assets/ui/soccer_ui/brightness_low.png");
+
+	mBg.emplace(mBgTex);
+	mBg->setScale({
+		static_cast<float>(Config::WINDOW_WIDTH) / mBgTex.getSize().x,
+		static_cast<float>(Config::WINDOW_HEIGHT) / mBgTex.getSize().y
+		});
+
+	mPanel.emplace(mPanelTex);
+	mPanel->setOrigin({
+		mPanelTex.getSize().x / 2.0f,
+		mPanelTex.getSize().y / 2.0f
+		});
+	mPanel->setPosition({
+		Config::WINDOW_WIDTH / 2.0f,
+		Config::WINDOW_HEIGHT / 2.0f
+		});
+	mPanel->setScale({ 0.9f, 0.9f });
+
+	mSettingWords.emplace(mSettingWordsTex);
+	mSettingWords->setOrigin(
+		{ mSettingWordsTex.getSize().x / 2.0f,
+		mSettingWordsTex.getSize().y / 2.0f });
+	mSettingWords->setPosition({ Config::WINDOW_WIDTH / 1.34f, Config::WINDOW_HEIGHT / 4.0f });
+	mSettingWords->setScale({ 0.5f, 0.5f });
+
+	mExitBtn.emplace(mExitTex);
+	mExitBtn->setPosition({ 500.f, 355.f });
+	mExitBtn->setScale({ 0.28f, 0.28f });
+
+	mVolumeIcon.emplace(mVolumeHighTex);
+	mVolumeIcon->setPosition({ 200.f, 260.f });
+	mVolumeIcon->setScale({ 0.5f, 0.5f });
+
+	mBrightnessIcon.emplace(mBrightnessMidTex);
+	mBrightnessIcon->setPosition({ 470.f, 260.f });
+	mBrightnessIcon->setScale({ 0.5f, 0.5f });
+
+	updateIcons();
 }
+
+void SettingsMenuState::tick(GameEngine& engine, float dt)
+{
+	auto& window = engine.getWindow();
+
+	bool mouseDown = sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
+	bool justClicked = mouseDown && !mMouseWasDown;
+
+	if (justClicked)
+	{
+		if (mExitBtn && isMouseOver(mExitBtn->getGlobalBounds(), window)) {
+			engine.transitionTo(std::make_unique<StartMenuState>());
+			return;
+		}
+
+		if (mVolumeIcon && isMouseOver(mVolumeIcon->getGlobalBounds(), window)) {
+			mVolumeState = (mVolumeState + 1) % 3;
+			updateIcons();
+		}
+
+		if (mBrightnessIcon && isMouseOver(mBrightnessIcon->getGlobalBounds(), window)) {
+			mBrightnessState = (mBrightnessState + 1) % 3;
+			updateIcons();
+		}
+	}
+
+	mMouseWasDown = mouseDown;
+}
+
 
 void SettingsMenuState::render(GameEngine& engine)
 {
-	/* TODO: Implement rendering for settings menu */
+	auto& window = engine.getWindow();
+
+	if (mBg) window.draw(*mBg);
+	if (mPanel) window.draw(*mPanel);
+	if (mVolumeIcon) window.draw(*mVolumeIcon);
+	if (mBrightnessIcon) window.draw(*mBrightnessIcon);
+	if (mExitBtn) window.draw(*mExitBtn);
+	if (mSettingWords) window.draw(*mSettingWords);
 }
 
+bool SettingsMenuState::isMouseOver(const sf::FloatRect& bounds, sf::RenderWindow& window)
+{
+	sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
+	sf::Vector2f mouseWorld = window.mapPixelToCoords(mousePixel);
+
+	return bounds.contains(mouseWorld);
+}
+
+void SettingsMenuState::updateIcons()
+{
+	if (mVolumeIcon) {
+		if (mVolumeState == 0) {
+			mVolumeIcon->setTexture(mVolumeLowTex);
+		}
+		else if (mVolumeState == 1) {
+			mVolumeIcon->setTexture(mVolumeMidTex);
+		}
+		else {
+			mVolumeIcon->setTexture(mVolumeHighTex);
+		}
+	}
+
+	if (mBrightnessIcon) {
+		if (mBrightnessState == 0) {
+			mBrightnessIcon->setTexture(mBrightnessLowTex);
+		}
+		else if (mBrightnessState == 1) {
+			mBrightnessIcon->setTexture(mBrightnessMidTex);
+		}
+		else {
+			mBrightnessIcon->setTexture(mBrightnessHighTex);
+		}
+	}
+}
 /**************************
 * PAUSE MENU STATE
 **************************/

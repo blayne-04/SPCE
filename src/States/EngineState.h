@@ -52,8 +52,38 @@ private:
 
 class SettingsMenuState : public EngineState {
 public:
+    SettingsMenuState();
     void tick(GameEngine& engine, float dt) override;
     void render(GameEngine& engine) override;
+
+private:
+    sf::Texture mBgTex;
+    sf::Texture mPanelTex;
+    sf::Texture mExitTex;
+    sf::Texture mSettingWordsTex;
+    sf::Texture mVolumeHighTex;
+    sf::Texture mVolumeMidTex;
+    sf::Texture mVolumeLowTex;
+
+    sf::Texture mBrightnessHighTex;
+    sf::Texture mBrightnessMidTex;
+    sf::Texture mBrightnessLowTex;
+    //sf::Texture mSettingWords;
+    std::optional<sf::Sprite> mBg;
+    std::optional<sf::Sprite> mPanel;
+    std::optional<sf::Sprite> mExitBtn;
+    std::optional<sf::Sprite> mSettingWords;
+
+    std::optional<sf::Sprite> mVolumeIcon;
+    std::optional<sf::Sprite> mBrightnessIcon;
+
+    // 0 = LOW, 1 = MID, 2 = HIGH
+    int mVolumeState = 2;
+    int mBrightnessState = 1;
+    bool mMouseWasDown = false;
+
+    bool isMouseOver(const sf::FloatRect& bounds, sf::RenderWindow& window);
+    void updateIcons();
 };
 
 class PauseMenuState : public EngineState {
