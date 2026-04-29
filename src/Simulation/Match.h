@@ -39,7 +39,7 @@ public:
 	void clearTimerSec() { mMatchTimerSec = 0.f; }
 	float getTimerSec() const { return mMatchTimerSec; }
 
-	void overwriteWorld(GameStatePacket incomingHostPacket) { mWorld.overwriteFromPacket(incomingHostPacket);}
+	/*void overwriteWorld(GameStatePacket incomingHostPacket) { mWorld.overwriteFromPacket(incomingHostPacket);}*/ // REMOVED FOR NOW
 
 	/* Returns reference to world, for state class to mutate and interface with */
 	World& getWorld() { return mWorld; }

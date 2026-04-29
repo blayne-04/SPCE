@@ -2,22 +2,17 @@
 
 #include <SFML/Graphics.hpp>
 #include "../Input/InputHandler.h"
-#include "../Input/AIController.h"
 #include "../Core/Renderer.h"
+#include "../Input/AiController.h"
 #include <stdint.h>
 #include <stdio.h>
 
-/* Forward Declaration */
+/* Forward declaration */
 class GameEngine;
 
-/**
- * Base class for all engine states.
- * States handle high-level game flow (menus, gameplay modes, etc.)
- */
 class EngineState {
 public:
-    virtual ~EngineState() = default;
-
+	EngineState() = default;
     /**
      * Called once per frame. Handle input and update state logic.
      * @param engine - Reference to GameEngine for state transitions and resources
@@ -38,52 +33,21 @@ public:
 
 class StartMenuState : public EngineState {
 public:
+    StartMenuState();
     void tick(GameEngine& engine, float dt) override;
-    void render(sf::RenderWindow& window) override;
-    enum class MenuOption {
-        Singleplayer,
-        Multiplayer,
-        Settings,
-        Exit
-    };
-
-    enum class MultiplayerOption {
-        Host,
-        Join
-    };
-    // Getters — MenuInputHandler needs to read and modify these
-    MenuOption getSelectedOption() const { return mSelectedOption; }
-    MultiplayerOption getSelectedMultiplayerOption() const { return mSelectedMultiplayerOption; }
-    bool isMultiplayerDropdownOpen() const { return mMultiplayerDropdownOpen; }
-
-    // Setters — MenuInputHandler calls these to update state
-    void setSelectedOption(MenuOption option) { mSelectedOption = option; }
-    void setSelectedMultiplayerOption(MultiplayerOption option) { mSelectedMultiplayerOption = option; }
-    void setMultiplayerDropdownOpen(bool open) { mMultiplayerDropdownOpen = open; }
-
-   
+    void render(GameEngine& engine) override;
 private:
-   
+    sf::Texture mBackgroundTex;
+    std::optional<sf::Sprite> mBackgroundSprite;
 
-    MenuOption mSelectedOption = MenuOption::Singleplayer;
-    bool mMultiplayerDropdownOpen = false;
-    MultiplayerOption mSelectedMultiplayerOption = MultiplayerOption::Host;
+    sf::Texture mButtonSheet;
+    std::optional<sf::Sprite> mBtnPlay;
+    std::optional<sf::Sprite> mBtnHost;
+    std::optional<sf::Sprite> mBtnJoin;
+    std::optional<sf::Sprite> mBtnSettings;
 
-    // Helper methods
-   // void handleKeyboardInput(GameEngine& engine, const sf::Event::KeyPressed& keyPress);// part of menu input handler class
-    //void handleMouseInput(GameEngine& engine, const sf::Event::MouseButtonPressed& mousePress); // part of menu input handler class
-    //
-    void selectOption(GameEngine& engine);
-    // SFML resources
-    sf::Font mFont;
-    sf::Texture mBackgroundTexture;
-    sf::Sprite mBackground;
-    sf::Vector2f mWindowSize;
-    MenuInputHandler mInputHandler;
-
-    void drawButton(sf::RenderWindow& window, const sf::Vector2f& position, const sf::Vector2f& size,
-        const std::string& text, bool isSelected, const sf::Color& color = sf::Color(80, 80, 120));
-    friend class MenuInputHandler;
+    /* Helper to see if a sprite is clicked */
+    bool isSpriteClicked(sf::Sprite& sprite, sf::RenderWindow& window);
 };
 
 class SettingsMenuState : public EngineState {
@@ -106,6 +70,7 @@ private:
     InputHandler mInputHandler;
     std::uint8_t mMyPlayerID = 255;
     Renderer mRenderer;
+    GameStatePacket mLatestState;
 };
 
 class HostPlayingState : public EngineState {

@@ -1,24 +1,29 @@
 #pragma once
-
 #include <SFML/Graphics.hpp>
 #include "Common/Packets.h"
+#include <optional>
+#include <array>
 
-// ============================================================================
-// RENDERER
-// ============================================================================
-// Consumes authoritative GameStatePacket snapshots and draws the game world.
-// No direct dependency on Match/World/Simulation - only on the network contract.
-// ============================================================================
-
+/*Credit: Ryan*/
 class Renderer {
 public:
-	// SANTI: Default constructor removed (compiler-generated is sufficient).
+    Renderer();
+    void render(sf::RenderWindow& window, const GameStatePacket& gameState);
+    void renderHUD(sf::RenderWindow& window, int homeScore, int awayScore, float matchTimerSec, int stateID);
 
-	// SANTI: Changed render() to consume GameStatePacket instead of Match.
-	// Pass by const reference to avoid copying the entire snapshot.
-	void render(sf::RenderWindow& window, const GameStatePacket& gameState);
+private:
+    // Background assets
+    sf::Texture mBackgroundTex;
+    std::optional<sf::Sprite> mBackgroundSprite;
 
-	// Draw scoreboard, timer, and game state text.
-	// Parameters are extracted from GameStatePacket for convenience.
-	void renderHUD(int homeScore, int awayScore, float matchTimerSec, int stateID);
+    // Player Animation assets
+    // [0]=Home/Red/Color1, [1]=Away/Blue/Color6
+    // [0]=Down, [1]=Up, [2]=Left, [3]=Right
+    sf::Texture mTeamTextures[2][4];
+    std::optional<sf::Sprite> mPlayerSprite;
+
+    // Animation constants
+    const float ANIM_SPEED = 0.15f;
+    const int FRAME_WIDTH = 24;
+    const int FRAME_HEIGHT = 24;
 };

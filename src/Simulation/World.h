@@ -53,8 +53,33 @@ public:
 
 	// Const access to the ball.
 	const Ball& ball() const { return mBall; }
-    void overwriteWorldFromPacket(GameStatePacket incomingHostPacket);
-    // Your methods here...
+
+
+	// SANTI: Step 5 helper. Moves all players based on FrameInput.
+	void applyFrameMovement(const FrameInput& frameData, float dt);
+
+	// ------------------------------------------------------------------------
+	// POSSESSION MECHANICS (SANTI: Step 6 gameplay wiring)
+	// ------------------------------------------------------------------------
+	// These functions mutate World-owned objects (players + ball) but do NOT
+	// change match rules (score, timer, state transitions). That separation
+	// keeps the design OOP-first:
+	// - World is the sandbox/arena and owns objects.
+	// - MatchState decides WHEN to call these mechanics based on game rules.
+
+	// SANTI: If the ball has an owner, attach it to the owner's position.
+	// This makes "possession" a consistent physical representation.
+	void attachBallToOwnerIfAny();
+
+	// SANTI: If the ball is loose and a player is close enough, assign ownership.
+	// This is the MVP version of "ball pickup / interception".
+	void tryPickupLooseBall(float pickupRadius);
+
+	Goal& homeGoal() { return mHomeGoal; }          // SANTI
+	Goal& awayGoal() { return mAwayGoal; }          // SANTI
+	const Goal& homeGoal() const { return mHomeGoal; } // SANTI
+	const Goal& awayGoal() const { return mAwayGoal; } // SANTI
+
 
 private:
 	// ------------------------------------------------------------------------

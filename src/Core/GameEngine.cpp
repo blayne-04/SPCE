@@ -3,7 +3,6 @@
 #include "../Common/Constants.h"
 #include <optional>
 
-
 GameEngine::GameEngine()
 	: mWindow(sf::VideoMode({ Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT }), "Super Copa Peru Evolution") {
 	mWindow.setFramerateLimit(60);
