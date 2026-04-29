@@ -76,7 +76,7 @@ void StartMenuState::tick(GameEngine& engine, float dt) {
 		}
 		else if (mBtnJoin && isSpriteClicked(*mBtnJoin, window)) {
 			/* Client connects to host */
-			std::optional<sf::IpAddress> hostIP = sf::IpAddress::resolve("10.57.227.196");
+			std::optional<sf::IpAddress> hostIP = sf::IpAddress::resolve("10.57.227.195");
 			if (hostIP) {
 				engine.getNetwork().startClient(*hostIP, Config::HOST_PORT);
 				std::cout << "Client: Connecting to " << hostIP->toString() 
