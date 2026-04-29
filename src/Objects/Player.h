@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "SFML/Graphics.hpp"
 #include "../Common/Constants.h" // SANTI: Config::PLAYER_SPEED, bounds
@@ -60,7 +60,7 @@ public:
 	void applyMoveDirection(const sf::Vector2f& moveDir, float dt) {
 		if (dt <= 0.f) return;
 
-		// Snapshot-friendly velocity (even if you don’t use it for physics yet).
+		// Snapshot-friendly velocity (even if you don't use it for physics yet).
 		mVelocity = moveDir * Config::PLAYER_SPEED;
 
 		const bool isMoving = (moveDir.x != 0.f || moveDir.y != 0.f);

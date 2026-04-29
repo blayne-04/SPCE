@@ -1,6 +1,7 @@
 #include "MatchStates.h"
 #include "../Simulation/Match.h"
 #include "../Common/Constants.h"
+#include "../Simulation/PhysicsEngine.h"
 
 /* ========================================= */
 /*              GAME OVER                    */
@@ -69,33 +70,52 @@ void PlayingState::update(Match& match, const FrameInput& frameData, float dt) {
 	// Movement is a simulation mechanic, so World owns it.
 	world.applyFrameMovement(frameData, dt);
 
+	// SANTI: Resolve overlaps after movement so players don't stack.
+	PhysicsEngine::resolvePlayerSeparation(world, dt);
+
+
 	// 2) Possession mechanics + ball stepping.
 	//
 	// Separation of concerns:
 	// - World owns "how possession/pickup works" (attachBallToOwnerIfAny, tryPickupLooseBall).
 	// - PlayingState owns "what inputs mean" (pass/shoot triggers) and match rules.
 	Ball& ball = world.ball();
-	const int ownerId = ball.getOwner();
+	int ownerId = ball.getOwner();
 
 	// If owned, keep ball attached to the owner, then allow owner inputs to kick.
 	if (ownerId >= 0 && ownerId < static_cast<int>(Config::kNumPlayers)) {
 		world.attachBallToOwnerIfAny();
 
-		const InputPacket& ownerInput = frameData.inputs[ownerId];
+		// SANTI 28/04/2026: Resolve tackles before reading owner actions.
+		// A successful tackle transfers possession immediately, so the old owner
+		// should NOT also get to pass/shoot on the same tick.
+		world.resolveTackleSteals(frameData, dt);
+		ownerId = ball.getOwner();
+		if (ownerId < 0) return;
+		if (ownerId >= static_cast<int>(Config::kNumPlayers)) return;
 
-		// MVP: DOWN-state triggers. Later you can compute edges on the host.
-		if (ownerInput.passDown) {
-			ball.applyPass();
+		// SANTI: Input is DOWN-state; World computes edges for pass/shoot.
+		if (world.isPassPressed(frameData, ownerId)) {
+			// SANTI: Keep PlayingState readable. World owns pass mechanics
+			// (including interception query); PlayingState only interprets input.
+			world.kickGuaranteedPassWithInterception(ownerId);
 		}
-		else if (ownerInput.shootDown) {
-			ball.applyShot();
+		else if (world.isShootPressed(frameData, ownerId)) {
+			// SANTI: Guaranteed shot (no mouse aim) with defender interception.
+			world.kickGuaranteedShotWithInterception(ownerId);
 		}
 	}
 
 	// If loose, integrate ball physics and then allow pickup/interceptions.
 	if (ball.getOwner() < 0) {
 		ball.update(dt);
-		world.tryPickupLooseBall(Config::BALL_STEAL_RADIUS);
+
+		// SANTI 28/04/2026: During guided travel (guaranteed pass/shot), we do NOT
+		// allow pickup. Possession is assigned only when the guided travel ends.
+		// This matches your rule: "don't switch possession until success."
+		if (!ball.isGuidedInFlight()) {
+			world.tryPickupLooseBall(Config::BALL_STEAL_RADIUS);
+		}
 	}
 
 	// 3) Goal detection and scoring.
@@ -113,6 +133,10 @@ void PlayingState::update(Match& match, const FrameInput& frameData, float dt) {
 		match.TransitionTo(std::make_unique<KickoffState>());
 		return;
 	}
+
+	// SANTI 28/04/2026: Commit action button DOWN-state history after reading edges.
+	// This makes pass/shoot edge detection correct even when possession changes.
+	world.commitActionButtonHistory(frameData);
 
 	// SANTI: end match when time limit reached.
 	if (match.getTimerSec() < Config::MATCH_DURATION_SECONDS) return;
