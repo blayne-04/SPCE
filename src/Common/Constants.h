@@ -85,7 +85,10 @@ namespace Config {
 	// SANTI 28/04/2026: AI should not spam tackles from too far away.
 	// Humans can still do that (skill expression), but AI gets a smaller trigger radius.
 	// SANTI 28/04/2026: Further nerf. Make AI commit to tackles only when very close.
-	constexpr float AI_TACKLE_TRIGGER_RADIUS = 15.f;
+	// SANTI 29/04/26: Slightly increased so AI tackles actually happen.
+	// 15px was so tight that, with separation pushes + ball attach offset, the AI
+	// would rarely reach the trigger threshold and "never tackle" looked like a bug.
+	constexpr float AI_TACKLE_TRIGGER_RADIUS = 22.f;
 
 	constexpr float AI_SPEED = 150.f;
 	constexpr float AI_FORMATION_BALL_INFLUENCE = 0.25f;
@@ -254,6 +257,10 @@ namespace Config {
 	inline constexpr sf::Keyboard::Key SHOOT_KEY = sf::Keyboard::Key::K;           // primary shot
 	inline constexpr sf::Keyboard::Key PASS_KEY = sf::Keyboard::Key::J;            // short pass
 	inline constexpr sf::Keyboard::Key TACKLE_KEY = sf::Keyboard::Key::L;          // standing tackle
+	// SANTI 29/04/26: Alternate tackle key for old-project muscle memory.
+	// Earlier notes used F for "steal/tackle". If you press the wrong key, it
+	// looks like tackles are broken, so we accept both.
+	inline constexpr sf::Keyboard::Key TACKLE_KEY_ALT = sf::Keyboard::Key::F;      // standing tackle (alt)
 	inline constexpr sf::Keyboard::Key SWITCH_PLAYER_KEY = sf::Keyboard::Key::I;   // change controlled player
 
 	// Quit (left hand, easy access)
@@ -271,6 +278,11 @@ namespace Config {
 
 	// One place to change the port for host + client.
 	constexpr unsigned short HOST_PORT = 54000;
+
+	// SANTI 29/04/26: Default host address for client mode.
+	// Change this for LAN tests (example: "192.168.1.50").
+	// We keep it as a string so Constants.h does not need SFML Network includes.
+	constexpr const char* DEFAULT_HOST_ADDRESS = "127.0.0.1";
 
 	// SANTI: changed from 10 to 8 players (4 per team)
 	inline constexpr std::size_t kNumPlayers = 8;

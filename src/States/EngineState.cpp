@@ -2,6 +2,7 @@
 #include "../Core/GameEngine.h"
 #include "../Common/Constants.h"
 #include <iostream>
+#include <optional> // SANTI 29/04/26: for resolving Config::DEFAULT_HOST_ADDRESS
 
 /**************************
 * START MENU STATE
@@ -136,9 +137,19 @@ void ClientPlayingState::tick(GameEngine& engine, float dt)
 	auto& network = engine.getNetwork();
 
 	// SANTI 28/04/2026: Start the client socket exactly once.
-	// For MVP we connect to localhost. For LAN play, replace LocalHost with the host PC's IP.
+	// For LAN play, change Config::DEFAULT_HOST_ADDRESS in Common/Constants.h.
 	if (!mNetworkStarted) {
-		network.startClient(sf::IpAddress::LocalHost, Config::HOST_PORT);
+		// SANTI 29/04/26: SFML 3 removed the IpAddress(string) constructor.
+		// Resolve from our config string. If resolution fails, fall back to localhost
+		// so the game still runs in single-machine tests.
+		const std::optional<sf::IpAddress> resolved =
+			sf::IpAddress::resolve(Config::DEFAULT_HOST_ADDRESS);
+
+		const sf::IpAddress hostAddress = resolved.has_value()
+			? *resolved
+			: sf::IpAddress::LocalHost;
+
+		network.startClient(hostAddress, Config::HOST_PORT);
 		mNetworkStarted = true;
 	}
 
@@ -166,7 +177,23 @@ void ClientPlayingState::tick(GameEngine& engine, float dt)
 		inputPlayerId = mLatestState.controlledAwayPlayerId;
 	}
 
-	InputPacket clientInput = mInputHandler.getLocalInput(inputPlayerId);
+	// SANTI 29/04/26: IMPORTANT for local testing with 2 instances on the same PC.
+	//
+	// InputHandler uses sf::Keyboard::isKeyPressed which reads the GLOBAL keyboard state,
+	// even if a window is out of focus. This means if you run a Host window and a Client
+	// window on the same machine, BOTH processes would read the same key presses and it
+	// would feel like you're "controlling both teams at once".
+	//
+	// Fix: only the focused window is allowed to generate real input. The unfocused window
+	// sends a neutral packet (no movement, no buttons). This does NOT affect real LAN play,
+	// because host and client are on different machines with different keyboards.
+	InputPacket clientInput{};
+	clientInput.playerId = inputPlayerId;
+
+	const bool windowHasFocus = engine.getWindow().hasFocus();
+	if (windowHasFocus) {
+		clientInput = mInputHandler.getLocalInput(inputPlayerId);
+	}
 	network.sendPlayerInput(clientInput);
 
 	/* Receive and apply latest game state from host */
@@ -208,14 +235,30 @@ void HostPlayingState::tick(GameEngine& engine, float dt)
 	}
 
 	/* Handle any new clients trying to join */
-	network.handleHandshakeRequests();
+	// SANTI 29/04/26: Do NOT call handleHandshakeRequests() here.
+	//
+	// Reason:
+	// - handleHandshakeRequests() drains the UDP socket and only processes JOIN_REQUEST.
+	// - Any INPUT packets received during that drain would be discarded.
+	//
+	// pollIncomingInputs() already handles JOIN_REQUEST (and INPUT) correctly in one place,
+	// so HostPlayingState should rely on pollIncomingInputs() only.
+	//
+	// This makes networking behavior stable and avoids "missing client input" glitches.
 
 	// SANTI 28/04/2026: Host input is always for the currently controlled HOME player.
 	// This enables defensive switching and "control the ball owner" without changing networking.
 	const std::uint8_t hostControlledId = match.getControlledHomePlayerId();
 
 	FrameInput frameData{};
-	frameData.inputs[hostControlledId] = mInputHandler.getLocalInput(hostControlledId);
+
+	// SANTI 29/04/26: Same local-two-instances fix as the client side.
+	// Only the focused window is allowed to generate real keyboard input.
+	const bool windowHasFocus = engine.getWindow().hasFocus();
+	if (windowHasFocus) {
+		frameData.inputs[hostControlledId] = mInputHandler.getLocalInput(hostControlledId);
+	}
+	frameData.inputs[hostControlledId].playerId = hostControlledId;
 
 	/* Track human player slots */
 	bool isHuman[Config::kNumPlayers] = { false };

@@ -173,6 +173,22 @@ void PlayingState::update(Match& match, const FrameInput& frameData, float dt) {
 	// - World owns "how possession/pickup works" (attachBallToOwnerIfAny, tryPickupLooseBall).
 	// - PlayingState owns "what inputs mean" (pass/shoot triggers) and match rules.
 	Ball& ball = world.ball();
+	// SANTI 29/04/26: IMPORTANT BUGFIX FOR STEALS/TACKLES.
+	//
+	// Ball::mStealCooldown is used as a generic "interaction cooldown":
+	// - after kicks (pickup grace)
+	// - after receiving/intercepting (possession protection)
+	//
+	// Ball::update(dt) is the only place that ticks this cooldown down each frame.
+	// Previously we only called ball.update(dt) when the ball was loose (owner == -1).
+	// That meant once the ball became owned again, the cooldown never decreased,
+	// which effectively disabled tackles/steals forever (World::resolveTackleSteals
+	// early-returns if ball.getStealCooldown() > 0).
+	//
+	// Fix: always call ball.update(dt) once per tick. When the ball is owned,
+	// Ball::update only ticks cooldown and returns without moving the ball.
+	ball.update(dt);
+
 	int ownerId = ball.getOwner();
 
 	// If owned, keep ball attached to the owner, then allow owner inputs to kick.
@@ -205,8 +221,6 @@ void PlayingState::update(Match& match, const FrameInput& frameData, float dt) {
 
 	// If loose, integrate ball physics and then allow pickup/interceptions.
 	if (ball.getOwner() < 0) {
-		ball.update(dt);
-
 		// SANTI 28/04/2026: During guided travel (guaranteed pass/shot), we do NOT
 		// allow pickup. Possession is assigned only when the guided travel ends.
 		// This matches your rule: "don't switch possession until success."
