@@ -36,8 +36,14 @@ void NetworkManager::startHost(uint16 localPort)
 		mRemoteAddress = sf::IpAddress::Any;
 		mRemotePort = 0;
 
+		std::optional<sf::IpAddress> myIP = sf::IpAddress::getLocalAddress();
 		std::cout << "[HOST] Successfully bound to port " << localPort << std::endl;
+		if (myIP) {
+			std::cout << "[HOST] Your IP address is: " << myIP->toString() << std::endl;
+			std::cout << "[HOST] Clients should connect to: " << myIP->toString() << ":" << localPort << std::endl;
+		}
 		std::cout << "[HOST] Socket is non-blocking and ready to receive" << std::endl;
+		std::cout << "[HOST] Waiting for JOIN_REQUEST packets..." << std::endl;
 	}
 	catch (const std::exception& e) {
 		std::cerr << "[HOST EXCEPTION] startHost failed: " << e.what() << std::endl;
@@ -55,8 +61,9 @@ void NetworkManager::startHost(uint16 localPort)
 void NetworkManager::startClient(const sf::IpAddress& remoteAddress, uint16 remotePort)
 {
 	try {
-		std::cout << "[CLIENT] Connecting to host " << remoteAddress.toString() 
-		          << ":" << remotePort << std::endl;
+		std::cout << "[CLIENT] ========================================" << std::endl;
+		std::cout << "[CLIENT] Attempting to connect to host" << std::endl;
+		std::cout << "[CLIENT] Target: " << remoteAddress.toString() << ":" << remotePort << std::endl;
 
 		// Store the host endpoint (destination for packets)
 		mRemoteAddress = remoteAddress;
@@ -80,10 +87,15 @@ void NetworkManager::startClient(const sf::IpAddress& remoteAddress, uint16 remo
 		mLocalPort = static_cast<uint16>(mSocket.getLocalPort());
 		mSocket.setBlocking(false);
 
+		std::optional<sf::IpAddress> myIP = sf::IpAddress::getLocalAddress();
 		std::cout << "[CLIENT] Successfully bound to local port " << mLocalPort << std::endl;
-		std::cout << "[CLIENT] Ready to send/receive packets" << std::endl;
-		std::cout << "[CLIENT] Host endpoint: " << mRemoteAddress.toString() 
+		if (myIP) {
+			std::cout << "[CLIENT] My IP address: " << myIP->toString() << std::endl;
+		}
+		std::cout << "[CLIENT] Sending packets to: " << mRemoteAddress.toString() 
 		          << ":" << mRemotePort << std::endl;
+		std::cout << "[CLIENT] Ready to send/receive packets" << std::endl;
+		std::cout << "[CLIENT] ========================================" << std::endl;
 	}
 	catch (const std::exception& e) {
 		std::cerr << "[CLIENT EXCEPTION] startClient failed: " << e.what() << std::endl;
@@ -111,17 +123,29 @@ void NetworkManager::sendJoinRequest()
 
 		auto sendStatus = mSocket.send(packet, mRemoteAddress, static_cast<unsigned short>(mRemotePort));
 		
+		static int requestCount = 0;
+		static int failureCount = 0;
+		
 		if (sendStatus != sf::Socket::Status::Done) {
-			std::cerr << "[CLIENT WARNING] JOIN_REQUEST send failed. Status: " 
-			          << static_cast<int>(sendStatus) << std::endl;
-			std::cerr << "[CLIENT WARNING] Possible network issue or firewall blocking" << std::endl;
-		} else {
-			static int requestCount = 0;
-			if (requestCount % 60 == 0) { // Log every 60 attempts (~1 second at 60fps)
-				std::cout << "[CLIENT] Sending JOIN_REQUEST to " << mRemoteAddress.toString() 
-				          << ":" << mRemotePort << " (attempt " << requestCount + 1 << ")" << std::endl;
+			failureCount++;
+			if (failureCount % 60 == 0) {
+				std::cerr << "[CLIENT ERROR] JOIN_REQUEST send failed " << failureCount << " times!" << std::endl;
+				std::cerr << "[CLIENT ERROR] Status: " << static_cast<int>(sendStatus) << std::endl;
+				std::cerr << "[CLIENT ERROR] This suggests:" << std::endl;
+				std::cerr << "  1. Host IP address may be wrong: " << mRemoteAddress.toString() << std::endl;
+				std::cerr << "  2. Host may not be reachable on this network" << std::endl;
+				std::cerr << "  3. Firewall is blocking outbound UDP" << std::endl;
+				std::cerr << "  4. School network may block P2P connections" << std::endl;
 			}
+		} else {
 			requestCount++;
+			if (requestCount == 1) {
+				std::cout << "[CLIENT] First JOIN_REQUEST sent successfully" << std::endl;
+			}
+			if (requestCount % 120 == 0) { // Every 2 seconds
+				std::cout << "[CLIENT] Still waiting for response... (sent " << requestCount << " requests)" << std::endl;
+				std::cout << "[CLIENT] Host should show: 'Received JOIN_REQUEST from <your_ip>'" << std::endl;
+			}
 		}
 	}
 	catch (const std::exception& e) {
@@ -144,6 +168,8 @@ bool NetworkManager::pollIdAssignment(std::uint8_t& outId)
 
 		auto receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
 
+		static int totalPacketsReceived = 0;
+
 		// Drain socket looking for ASSIGNMENT message
 		while (receiveStatus != sf::Socket::Status::NotReady) {
 
@@ -157,6 +183,13 @@ bool NetworkManager::pollIdAssignment(std::uint8_t& outId)
 				continue;
 			}
 
+			totalPacketsReceived++;
+			
+			// ANY packet received is good news - means network is working
+			if (totalPacketsReceived == 1) {
+				std::cout << "[CLIENT] First packet received! Network is working!" << std::endl;
+			}
+
 			// Validate sender
 			if (!sender.has_value()) {
 				std::cerr << "[CLIENT WARNING] Received packet with no sender address" << std::endl;
@@ -164,10 +197,13 @@ bool NetworkManager::pollIdAssignment(std::uint8_t& outId)
 				continue;
 			}
 
+			// Log all received packets to debug routing
+			std::cout << "[CLIENT] Received packet from " << sender->toString() << ":" << senderPort << std::endl;
+
 			if (*sender != mRemoteAddress || static_cast<uint16>(senderPort) != mRemotePort) {
-				std::cerr << "[CLIENT WARNING] Received packet from unexpected source: " 
-				          << sender->toString() << ":" << senderPort 
-				          << " (expected " << mRemoteAddress.toString() << ":" << mRemotePort << ")" << std::endl;
+				std::cerr << "[CLIENT WARNING] Packet from unexpected source!" << std::endl;
+				std::cerr << "  Received from: " << sender->toString() << ":" << senderPort << std::endl;
+				std::cerr << "  Expected from: " << mRemoteAddress.toString() << ":" << mRemotePort << std::endl;
 				receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
 				continue;
 			}
@@ -180,20 +216,23 @@ bool NetworkManager::pollIdAssignment(std::uint8_t& outId)
 				continue;
 			}
 
+			std::cout << "[CLIENT] Message type: " << static_cast<int>(messageType) << std::endl;
+
 			// Check if it's an ASSIGNMENT message
 			if (messageType == static_cast<std::uint8_t>(NetMsg::ASSIGNMENT)) {
 				std::uint8_t assignedId = 0;
 				if (receivedPacket >> assignedId) {
 					outId = assignedId;
-					std::cout << "[CLIENT SUCCESS] Received player ID assignment: " 
-					          << static_cast<int>(assignedId) << std::endl;
+					std::cout << "[CLIENT SUCCESS] ========================================" << std::endl;
+					std::cout << "[CLIENT SUCCESS] Connected! Player ID: " << static_cast<int>(assignedId) << std::endl;
+					std::cout << "[CLIENT SUCCESS] ========================================" << std::endl;
 					return true;
 				} else {
 					std::cerr << "[CLIENT ERROR] Received ASSIGNMENT but failed to parse ID" << std::endl;
 				}
 			} else {
 				std::cout << "[CLIENT INFO] Received message type " << static_cast<int>(messageType) 
-				          << " while waiting for ASSIGNMENT" << std::endl;
+				          << " (expected ASSIGNMENT=" << static_cast<int>(NetMsg::ASSIGNMENT) << ")" << std::endl;
 			}
 
 			receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
@@ -223,6 +262,18 @@ void NetworkManager::handleHandshakeRequests()
 
 		auto receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
 
+		static int totalPacketsReceived = 0;
+		static bool hasLoggedWaiting = false;
+
+		// Log if we're waiting
+		if (!hasLoggedWaiting && receiveStatus == sf::Socket::Status::NotReady) {
+			static int waitFrames = 0;
+			waitFrames++;
+			if (waitFrames % 180 == 0) { // Every 3 seconds
+				std::cout << "[HOST] Still waiting for client packets..." << std::endl;
+			}
+		}
+
 		// Drain socket looking for JOIN_REQUEST messages
 		while (receiveStatus != sf::Socket::Status::NotReady) {
 
@@ -236,11 +287,22 @@ void NetworkManager::handleHandshakeRequests()
 				continue;
 			}
 
+			totalPacketsReceived++;
+			hasLoggedWaiting = true;
+
+			if (totalPacketsReceived == 1) {
+				std::cout << "[HOST] First packet received from network!" << std::endl;
+			}
+
 			if (!sender.has_value()) {
 				std::cerr << "[HOST WARNING] Received packet with no sender address" << std::endl;
 				receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
 				continue;
 			}
+
+			// Log ALL packets received
+			std::cout << "[HOST] Received packet from " << sender->toString() << ":" << senderPort 
+			          << " (total: " << totalPacketsReceived << ")" << std::endl;
 
 			// Read message type
 			std::uint8_t messageType = 0;
@@ -250,6 +312,8 @@ void NetworkManager::handleHandshakeRequests()
 				continue;
 			}
 
+			std::cout << "[HOST] Message type: " << static_cast<int>(messageType) << std::endl;
+
 			// Check if it's a JOIN_REQUEST
 			if (messageType == static_cast<std::uint8_t>(NetMsg::JOIN_REQUEST)) {
 				const std::uint8_t assignedPlayerId = 1;
@@ -258,22 +322,31 @@ void NetworkManager::handleHandshakeRequests()
 				mRemoteAddress = *sender;
 				mRemotePort = static_cast<uint16>(senderPort);
 
-				std::cout << "[HOST] Received JOIN_REQUEST from " << sender->toString() 
-				          << ":" << senderPort << std::endl;
-				std::cout << "[HOST] Assigning player ID " << static_cast<int>(assignedPlayerId) << std::endl;
+				std::cout << "[HOST] ========================================" << std::endl;
+				std::cout << "[HOST] JOIN_REQUEST received!" << std::endl;
+				std::cout << "[HOST] Client: " << sender->toString() << ":" << senderPort << std::endl;
+				std::cout << "[HOST] Assigning player ID: " << static_cast<int>(assignedPlayerId) << std::endl;
 
 				// Send ASSIGNMENT response
 				sf::Packet responsePacket;
 				responsePacket << static_cast<std::uint8_t>(NetMsg::ASSIGNMENT) << assignedPlayerId;
 				
+				std::cout << "[HOST] Sending ASSIGNMENT to " << mRemoteAddress.toString() 
+				          << ":" << mRemotePort << std::endl;
+				
 				auto sendStatus = mSocket.send(responsePacket, mRemoteAddress, static_cast<unsigned short>(mRemotePort));
 				
 				if (sendStatus != sf::Socket::Status::Done) {
-					std::cerr << "[HOST ERROR] Failed to send ASSIGNMENT. Status: " 
-					          << static_cast<int>(sendStatus) << std::endl;
+					std::cerr << "[HOST ERROR] Failed to send ASSIGNMENT!" << std::endl;
+					std::cerr << "[HOST ERROR] Status: " << static_cast<int>(sendStatus) << std::endl;
+					std::cerr << "[HOST ERROR] Client may not receive confirmation" << std::endl;
 				} else {
-					std::cout << "[HOST SUCCESS] Sent ASSIGNMENT to client" << std::endl;
+					std::cout << "[HOST SUCCESS] ASSIGNMENT sent successfully!" << std::endl;
 				}
+				std::cout << "[HOST] ========================================" << std::endl;
+			} else {
+				std::cout << "[HOST] Received non-JOIN_REQUEST message (type " 
+				          << static_cast<int>(messageType) << ")" << std::endl;
 			}
 
 			receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
@@ -384,7 +457,6 @@ void NetworkManager::sendGameState(const GameStatePacket& gameStatePacket)
 {
 	try {
 		if (mRemotePort == 0) {
-			// Silently return - no client connected yet
 			return;
 		}
 
@@ -395,7 +467,7 @@ void NetworkManager::sendGameState(const GameStatePacket& gameStatePacket)
 		
 		if (sendStatus != sf::Socket::Status::Done) {
 			static int errorCount = 0;
-			if (errorCount % 60 == 0) { // Log every 60 failures
+			if (errorCount % 60 == 0) {
 				std::cerr << "[HOST WARNING] Failed to send game state. Status: " 
 				          << static_cast<int>(sendStatus) << std::endl;
 			}
@@ -478,23 +550,16 @@ bool NetworkManager::receiveLatestGameState(GameStatePacket& outState)
 			}
 
 			if (messageType != static_cast<std::uint8_t>(NetMsg::STATE)) {
-				std::cout << "[CLIENT INFO] Received non-STATE message (type " 
-				          << static_cast<int>(messageType) << ")" << std::endl;
 				receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
 				continue;
 			}
 
-			// Optional noise filter (ignore non-host senders)
 			if (sender.has_value() && *sender != mRemoteAddress) {
-				std::cerr << "[CLIENT WARNING] Ignoring STATE from non-host: " 
-				          << sender->toString() << std::endl;
 				receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
 				continue;
 			}
 			
 			if (static_cast<uint16>(senderPort) != mRemotePort) {
-				std::cerr << "[CLIENT WARNING] Ignoring STATE from wrong port: " 
-				          << senderPort << std::endl;
 				receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
 				continue;
 			}
@@ -506,7 +571,6 @@ bool NetworkManager::receiveLatestGameState(GameStatePacket& outState)
 				continue;
 			}
 
-			// Keep newest snapshot
 			if (!gotAny || state.frameNumber > outState.frameNumber) {
 				outState = state;
 			}
@@ -515,11 +579,9 @@ bool NetworkManager::receiveLatestGameState(GameStatePacket& outState)
 			receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
 		}
 
-		// Log reception periodically
 		static int frameCounter = 0;
 		if (gotAny && frameCounter % 60 == 0) {
-			std::cout << "[CLIENT] Received " << packetCount << " game state packet(s), frame #" 
-			          << outState.frameNumber << std::endl;
+			std::cout << "[CLIENT] Receiving game state (frame #" << outState.frameNumber << ")" << std::endl;
 		}
 		frameCounter++;
 
