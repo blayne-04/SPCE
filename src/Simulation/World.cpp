@@ -4,7 +4,9 @@
 #include <algorithm>  // SANTI: std::clamp
 #include <array>      // SANTI 28/04/2026: fixed shot lane candidates
 #include <cmath>      // SANTI 28/04/2026: std::sqrt
+#include <chrono>     // SANTI 28/04/2026: RNG seeding (non-deterministic per run)
 #include <limits>     // SANTI: std::numeric_limits
+#include <cstdint>    // SANTI 28/04/2026: uint32_t RNG
 
 [[maybe_unused]] static bool rectsOverlap(const sf::FloatRect& a, const sf::FloatRect& b) {
 	return a.findIntersection(b).has_value(); // SFML 3 replacement for intersects
@@ -13,6 +15,17 @@
 // SANTI: Convention: player IDs 0-3 are Home, 4-7 are Away.
 static bool isHomePlayerId(int playerId) {
 	return playerId >= 0 && playerId < 4;
+}
+
+// SANTI 28/04/2026: Tiny RNG for "chance-based" gameplay rules.
+// Seeded in World::World() so each run differs, but within a single run the
+// behavior is stable (useful for debugging).
+static std::uint32_t gWorldRandState = 0xC0FFEEu;
+static float rand01() {
+	// LCG: fast and good enough for gameplay probability checks.
+	gWorldRandState = gWorldRandState * 1664525u + 1013904223u;
+	const std::uint32_t mantissa = (gWorldRandState >> 8) & 0x00FFFFFFu;
+	return static_cast<float>(mantissa) * (1.0f / 16777216.0f); // [0,1)
 }
 
 // SANTI 28/04/2026: Returns the closest opponent distance squared to a position.
@@ -155,6 +168,26 @@ static int chooseBestPassReceiverId(const World& world, int ownerId) {
 	const sf::Vector2f ownerPos = world.players()[ownerId].getPosition();
 	const sf::Vector2f attackDir = ownerIsHome ? sf::Vector2f(1.f, 0.f) : sf::Vector2f(-1.f, 0.f);
 
+	// SANTI 28/04/2026: Prefer "successful" passes over always-forward passes.
+	// We score each teammate by:
+	// - alignment with attack direction (but allow sideways/back passes under pressure)
+	// - available space around the receiver
+	// - corridor safety (nearest defender distance to the pass lane)
+	const float pressureDist = std::sqrt(nearestOpponentDistSq(world, ownerIsHome, ownerPos));
+	const bool underPressure = (pressureDist <= Config::AI_PASS_PRESSURE_DISTANCE);
+	const bool inFinalThird = isInFinalThird(ownerPos, ownerIsHome);
+
+	// Start/end for lane safety checks.
+	const float sign = ownerIsHome ? 1.f : -1.f;
+	const sf::Vector2f offset(Config::BALL_ATTACH_OFFSET_X * sign, 0.f);
+	const sf::Vector2f startPos = ownerPos + offset;
+
+	// Alignment gate (soft): allow sideways/back passes when they are safer.
+	// We only disallow extreme "full backpass" angles to keep passes reasonable.
+	float minAlignment = -0.55f;
+	if (inFinalThird) minAlignment = -0.70f;
+	if (underPressure) minAlignment = -0.85f;
+
 	int bestId = -1;
 	float bestScore = -std::numeric_limits<float>::max();
 
@@ -163,6 +196,8 @@ static int chooseBestPassReceiverId(const World& world, int ownerId) {
 		if (id == goalkeeperId) continue; // SANTI 28/04/2026
 
 		const sf::Vector2f matePos = world.players()[id].getPosition();
+		const sf::Vector2f endPos = matePos + offset;
+
 		sf::Vector2f toMate = matePos - ownerPos;
 		const float dist = std::sqrt(toMate.x * toMate.x + toMate.y * toMate.y);
 		if (dist <= Config::VECTOR_NORMALIZATION_EPSILON) continue;
@@ -172,13 +207,30 @@ static int chooseBestPassReceiverId(const World& world, int ownerId) {
 
 		// Alignment with the attack direction (dot with +/-X).
 		const float alignment = toMate.x * attackDir.x + toMate.y * attackDir.y;
-		if (alignment < Config::PASS_TARGET_ALIGNMENT_MIN) continue;
+		if (alignment < minAlignment) continue;
 
 		const float nearestOpp = std::sqrt(nearestOpponentDistSq(world, ownerIsHome, matePos));
 		const float spaceScore = std::clamp(nearestOpp / Config::AI_PASS_TARGET_SPACE_BONUS_DISTANCE, 0.f, 1.25f);
 
-		// Score: alignment matters most, then space, then a small distance penalty.
-		const float score = alignment * 1.2f + spaceScore * 1.0f - dist * 0.0015f;
+		// SANTI 28/04/2026: Lane safety: nearest defender distance to the pass lane.
+		// Higher is better. 1.0 means "about corridorRadius away".
+		const float laneDefDist = nearestLaneDefenderDistance(world, ownerIsHome, startPos, endPos);
+		const float safetyScore = std::clamp(
+			laneDefDist / std::max(Config::PASS_INTERCEPTION_CORRIDOR_RADIUS, Config::VECTOR_NORMALIZATION_EPSILON),
+			0.f,
+			2.0f);
+
+		// Score weights: prioritize safety, then space, then alignment.
+		const float alignmentWeight = inFinalThird ? 0.85f : 1.0f;
+		const float safetyWeight = 1.75f;
+		const float spaceWeight = 1.0f;
+		const float distancePenalty = 0.0016f;
+
+		const float score =
+			alignment * alignmentWeight +
+			spaceScore * spaceWeight +
+			safetyScore * safetyWeight -
+			dist * distancePenalty;
 		if (score <= bestScore) continue;
 
 		bestScore = score;
@@ -187,18 +239,33 @@ static int chooseBestPassReceiverId(const World& world, int ownerId) {
 
 	if (bestId >= 0) return bestId;
 
-	// Fallback: nearest teammate (even if behind).
+	// Fallback: choose the most "safe" lane even if it is sideways/behind.
 	int nearestId = -1;
-	float nearestDistSq = std::numeric_limits<float>::max();
+	float bestFallbackScore = -std::numeric_limits<float>::max();
 	for (int id = teamStart; id <= teamEndInclusive; ++id) {
 		if (id == ownerId) continue;
 		if (id == goalkeeperId) continue; // SANTI 28/04/2026
 
 		const sf::Vector2f matePos = world.players()[id].getPosition();
+		const sf::Vector2f endPos = matePos + offset;
+
 		const sf::Vector2f d = matePos - ownerPos;
-		const float dsq = d.x * d.x + d.y * d.y;
-		if (dsq >= nearestDistSq) continue;
-		nearestDistSq = dsq;
+		const float dist = std::sqrt(d.x * d.x + d.y * d.y);
+		if (dist <= Config::VECTOR_NORMALIZATION_EPSILON) continue;
+
+		const float nearestOpp = std::sqrt(nearestOpponentDistSq(world, ownerIsHome, matePos));
+		const float spaceScore = std::clamp(nearestOpp / Config::AI_PASS_TARGET_SPACE_BONUS_DISTANCE, 0.f, 1.25f);
+
+		const float laneDefDist = nearestLaneDefenderDistance(world, ownerIsHome, startPos, endPos);
+		const float safetyScore = std::clamp(
+			laneDefDist / std::max(Config::PASS_INTERCEPTION_CORRIDOR_RADIUS, Config::VECTOR_NORMALIZATION_EPSILON),
+			0.f,
+			2.0f);
+
+		// Prefer safer and closer passes in fallback.
+		const float score = safetyScore * 2.0f + spaceScore * 0.8f - dist * 0.0020f;
+		if (score <= bestFallbackScore) continue;
+		bestFallbackScore = score;
 		nearestId = id;
 	}
 
@@ -220,6 +287,19 @@ static int chooseBestPassReceiverId(const World& world, int ownerId) {
 // SANTI: Setup pitch bounds and call deterministic kickoff initialization.
 World::World()
 {
+	// SANTI 28/04/2026: Seed chance-based gameplay randomness so it is not the
+	// same every time you launch the game.
+	//
+	// This is safe for networking because the host is authoritative and clients
+	// only render snapshots. Determinism across machines is not required.
+	const std::uint64_t seed64 =
+		static_cast<std::uint64_t>(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+	gWorldRandState =
+		static_cast<std::uint32_t>(seed64) ^
+		static_cast<std::uint32_t>(seed64 >> 32) ^
+		0xA5A5A5A5u;
+	if (gWorldRandState == 0u) gWorldRandState = 1u;
+
 	// Define playable area from (0,0) to (window width, window height).
 	mPitchBounds = sf::FloatRect(
 		sf::Vector2f(0.f, 0.f),
@@ -237,7 +317,7 @@ World::World()
 // DETERMINISTIC KICKOFF RESET
 // ----------------------------------------------------------------------------
 // SANTI: Called by constructor and also used when a goal is scored (to restart).
-void World::resetKickoff()
+void World::resetKickoff(int kickoffTeamSide)
 {
 
 	// SANTI: define which goal is left/right once per reset.
@@ -301,19 +381,18 @@ void World::resetKickoff()
 	mWasPassDown.fill(false);
 	mWasShootDown.fill(false);
 
-	// SANTI 28/04/2026: Deterministic kickoff ownership (MVP).
-	// Home player 0 starts with the ball placed at midfield. This keeps "someone"
-	// in possession right away and makes early gameplay less awkward than a loose
-	// ball at center.
-	//
-	// If you later want alternating kickoffs or "team that conceded goal kicks off",
-	// move this decision up into MatchState/KickoffState and pass the desired ownerId in.
-	const int kickoffOwnerId = 0;
+	// SANTI 28/04/2026: Deterministic kickoff ownership.
+	// The kicking team starts with the ball on the center spot.
+	// Player IDs are fixed by contract:
+	// - Home outfield includes player 0
+	// - Away outfield includes player 4
+	const int kickoffOwnerId = (kickoffTeamSide == Config::AWAY_TEAM_SIDE) ? 4 : 0;
 
 	// Place the kickoff owner so the ball ends up exactly on the center spot
 	// when attached using the X offset.
+	const float sign = (kickoffOwnerId < 4) ? 1.f : -1.f;
 	mPlayers[kickoffOwnerId].setPosition(sf::Vector2f(
-		Config::FIELD_CENTER_X - Config::BALL_ATTACH_OFFSET_X,
+		Config::FIELD_CENTER_X - (Config::BALL_ATTACH_OFFSET_X * sign),
 		Config::FIELD_CENTER_Y
 	));
 
@@ -478,8 +557,145 @@ void World::resolveTackleSteals(const FrameInput& frameData, float dt) {
 	mStealRetryCooldownSec[static_cast<std::size_t>(bestStealerId)] = Config::STEALER_RETRY_COOLDOWN_SECONDS;
 }
 
+void World::enforceGoalkeeperSixYardBoxProtection() {
+	// SANTI 28/04/2026: If a goalkeeper is holding the ball, prevent opponents
+	// and teammates from entering the keeper's six-yard box.
+	//
+	// This is a gameplay rule enforced by the host simulation (authoritative).
+	// It is not a physics query and should not live inside PhysicsEngine.
+	const int ownerId = mBall.getOwner();
+	const bool ownerIsGoalkeeper = (ownerId == 3 || ownerId == 7);
+	if (!ownerIsGoalkeeper) return;
 
+	// If a pass/shot is currently in guided flight, no one "holds" the ball.
+	if (mBall.isGuidedInFlight()) return;
 
+	const bool keeperIsHome = isHomePlayerId(ownerId);
+	const float keeperX = mPlayers[ownerId].getPosition().x;
+
+	// Box bounds are defined in Constants.h. We use "player center" coordinates
+	// (because Player origin is the center of the circle).
+	const float yMin = std::clamp(
+		Config::GOAL_Y_TOP - Config::SIX_YARD_BOX_MARGIN_Y,
+		Config::PLAYER_MIN_Y,
+		Config::PLAYER_MAX_Y);
+	const float yMax = std::clamp(
+		Config::GOAL_Y_BOTTOM + Config::SIX_YARD_BOX_MARGIN_Y,
+		Config::PLAYER_MIN_Y,
+		Config::PLAYER_MAX_Y);
+
+	float xMin = 0.f;
+	float xMax = 0.f;
+	if (keeperIsHome) {
+		// Home goalkeeper (id 3) defends the left goal at x ~= 0.
+		xMin = Config::PLAYER_MIN_X;
+		xMax = std::clamp(
+			Config::LEFT_GOAL_X + Config::SIX_YARD_BOX_DEPTH,
+			Config::PLAYER_MIN_X,
+			Config::PLAYER_MAX_X);
+	}
+	else {
+		// Away goalkeeper (id 7) defends the right goal at x ~= WINDOW_WIDTH.
+		const float goalLineX = Config::RIGHT_GOAL_X + Config::GOAL_WIDTH;
+		xMin = std::clamp(
+			goalLineX - Config::SIX_YARD_BOX_DEPTH,
+			Config::PLAYER_MIN_X,
+			Config::PLAYER_MAX_X);
+		xMax = Config::PLAYER_MAX_X;
+	}
+
+	// Push players out horizontally. This is intentionally simple and stable.
+	// It avoids jitter from trying to compute a "minimum translation vector".
+	for (std::uint8_t id = 0; id < static_cast<std::uint8_t>(Config::kNumPlayers); ++id) {
+		if (static_cast<int>(id) == ownerId) continue;
+
+		sf::Vector2f pos = mPlayers[id].getPosition();
+		bool changed = false;
+
+		// SANTI 28/04/2026: Extra safety rule.
+		// On our small top-down pitch there is in-play space "behind" the keeper
+		// (between the keeper's fixed X and the goal line). That can cause
+		// football-nonsense situations where players drift behind their own keeper
+		// even if they are not inside the six-yard box Y-range.
+		//
+		// While the keeper is HOLDING the ball, we ensure nobody can be behind the
+		// keeper line for ANY Y. This applies to BOTH teams and both teammate/opponent.
+		if (keeperIsHome) {
+			const float minAllowedX = keeperX + Config::PLAYER_HALF_SIZE;
+			if (pos.x < minAllowedX) {
+				pos.x = minAllowedX;
+				changed = true;
+			}
+		}
+		else {
+			const float maxAllowedX = keeperX - Config::PLAYER_HALF_SIZE;
+			if (pos.x > maxAllowedX) {
+				pos.x = maxAllowedX;
+				changed = true;
+			}
+		}
+
+		const bool inside =
+			(pos.x >= xMin && pos.x <= xMax) &&
+			(pos.y >= yMin && pos.y <= yMax);
+		if (inside) {
+			if (keeperIsHome) {
+				pos.x = xMax + Config::PLAYER_HALF_SIZE;
+			}
+			else {
+				pos.x = xMin - Config::PLAYER_HALF_SIZE;
+			}
+			changed = true;
+		}
+
+		if (!changed) continue;
+
+		pos.x = std::clamp(pos.x, Config::PLAYER_MIN_X, Config::PLAYER_MAX_X);
+		pos.y = std::clamp(pos.y, Config::PLAYER_MIN_Y, Config::PLAYER_MAX_Y);
+		mPlayers[id].setPosition(pos);
+	}
+}
+
+void World::enforceNoPlayersInsideGoalMouth() {
+	// SANTI 28/04/2026: Hard gameplay rule for immersion.
+	// No player should ever stand inside the goal mouth rectangle (the net area).
+	//
+	// On a small pitch, separation pushes and simple AI steering can drift players
+	// into the goal itself, including teammates behind their own goalkeeper.
+	// Real football never has players standing inside the net, so we enforce this
+	// correction for BOTH goals, every tick.
+	//
+	// Implementation: if a player's center point is inside the goal-mouth region,
+	// push them out along X to the nearest valid edge. Keep it simple to avoid jitter.
+	const float paddedYMin = Config::GOAL_Y_TOP - Config::PLAYER_HALF_SIZE;
+	const float paddedYMax = Config::GOAL_Y_BOTTOM + Config::PLAYER_HALF_SIZE;
+
+	const float leftGoalMaxX = Config::LEFT_GOAL_X + Config::GOAL_WIDTH + Config::PLAYER_HALF_SIZE;
+	const float rightGoalMinX = Config::RIGHT_GOAL_X - Config::PLAYER_HALF_SIZE;
+
+	for (std::uint8_t id = 0; id < static_cast<std::uint8_t>(Config::kNumPlayers); ++id) {
+		sf::Vector2f pos = mPlayers[id].getPosition();
+
+		const bool inGoalY = (pos.y >= paddedYMin && pos.y <= paddedYMax);
+		if (!inGoalY) continue;
+
+		if (pos.x <= leftGoalMaxX) {
+			pos.x = leftGoalMaxX;
+			pos.x = std::clamp(pos.x, Config::PLAYER_MIN_X, Config::PLAYER_MAX_X);
+			pos.y = std::clamp(pos.y, Config::PLAYER_MIN_Y, Config::PLAYER_MAX_Y);
+			mPlayers[id].setPosition(pos);
+			continue;
+		}
+
+		if (pos.x >= rightGoalMinX) {
+			pos.x = rightGoalMinX;
+			pos.x = std::clamp(pos.x, Config::PLAYER_MIN_X, Config::PLAYER_MAX_X);
+			pos.y = std::clamp(pos.y, Config::PLAYER_MIN_Y, Config::PLAYER_MAX_Y);
+			mPlayers[id].setPosition(pos);
+			continue;
+		}
+	}
+}
 
 void World::kickGuaranteedPassWithInterception(int ownerId) {
 	// SANTI: A "guaranteed pass" is still initiated by input, but World owns the
@@ -563,10 +779,39 @@ void World::kickGuaranteedShotWithInterception(int ownerId) {
 			Config::SHOT_INTERCEPTION_CORRIDOR_RADIUS);
 
 	const bool intercepted = intercept.hasInterception && intercept.interceptorId != 255;
-	const sf::Vector2f finalEnd = intercepted ? intercept.interceptPoint : intendedEnd;
 
-	// If intercepted, defender gains possession at the end. If not, the shot ends loose.
-	const int finalOwnerId = intercepted ? static_cast<int>(intercept.interceptorId) : -1;
+	sf::Vector2f finalEnd = intercepted ? intercept.interceptPoint : intendedEnd;
+
+	// If intercepted, defender gains possession at the end.
+	// If not intercepted, we apply a distance-based goalkeeper save chance.
+	int finalOwnerId = intercepted ? static_cast<int>(intercept.interceptorId) : -1;
+
+	if (!intercepted) {
+		// SANTI 28/04/2026: Distance-based save probability.
+		// Farther shots are easier to save; closer shots are harder.
+		const float distX = std::abs(intendedEnd.x - startPos.x);
+
+		const float denom = std::max(
+			Config::SHOT_SAVE_DISTANCE_FAR_X - Config::SHOT_SAVE_DISTANCE_CLOSE_X,
+			Config::VECTOR_NORMALIZATION_EPSILON);
+		const float t = std::clamp(
+			(distX - Config::SHOT_SAVE_DISTANCE_CLOSE_X) / denom,
+			0.f,
+			1.f);
+
+		const float saveChance =
+			Config::SHOT_SAVE_CHANCE_CLOSE +
+			(Config::SHOT_SAVE_CHANCE_FAR - Config::SHOT_SAVE_CHANCE_CLOSE) * t;
+
+		// Defending goalkeeper id is fixed by team side.
+		const int goalkeeperId = ownerIsHome ? 7 : 3;
+
+		if (rand01() < saveChance) {
+			// Saved: end the shot at the goalkeeper position so it doesn't count as a goal.
+			finalEnd = mPlayers[goalkeeperId].getPosition();
+			finalOwnerId = goalkeeperId;
+		}
+	}
 
 	mBall.setPosition(startPos);
 	mBall.setVelocity(sf::Vector2f(0.f, 0.f));
@@ -601,6 +846,81 @@ void World::commitActionButtonHistory(const FrameInput& frameData) {
 		mWasPassDown[i] = frameData.inputs[i].passDown;
 		mWasShootDown[i] = frameData.inputs[i].shootDown;
 	}
+}
+
+// ----------------------------------------------------------------------------
+// KICKOFF RULES (SANTI 28/04/2026)
+// ----------------------------------------------------------------------------
+void World::enforceKickoffDefenderRestrictions(int kickoffTeamSide) {
+	const float centerX = Config::FIELD_CENTER_X;
+	const float centerY = Config::FIELD_CENTER_Y;
+
+	// SANTI 28/04/2026: Kickoff owner is the fixed center player for the kicking team.
+	// Home kickoff: player 0. Away kickoff: player 4.
+	const int kickoffOwnerId = (kickoffTeamSide == Config::AWAY_TEAM_SIDE) ? 4 : 0;
+
+	// Keep non-kickers outside the circle.
+	const float radiusWanted = Config::KICKOFF_CIRCLE_RADIUS + Config::PLAYER_HALF_SIZE;
+	const float radiusWantedSq = radiusWanted * radiusWanted;
+
+	const float halfLineXMin = centerX + Config::PLAYER_HALF_SIZE;
+	const float halfLineXMax = centerX - Config::PLAYER_HALF_SIZE;
+
+	for (int id = 0; id < static_cast<int>(Config::kNumPlayers); ++id) {
+		if (id == kickoffOwnerId) continue;
+
+		sf::Vector2f pos = mPlayers[id].getPosition();
+
+		// 1) Enforce half: everyone except the kickoff taker stays in their own half.
+		// Home players (0-3) stay on the left half, Away players (4-7) stay on the right half.
+		const int teamSide = (id < 4) ? Config::HOME_TEAM_SIDE : Config::AWAY_TEAM_SIDE;
+		if (teamSide == Config::AWAY_TEAM_SIDE) {
+			pos.x = std::max(pos.x, halfLineXMin);
+		}
+		else {
+			pos.x = std::min(pos.x, halfLineXMax);
+		}
+
+		// 2) Enforce kickoff circle: everyone except the kickoff taker stays outside.
+		const float dx = pos.x - centerX;
+		const float dy = pos.y - centerY;
+		const float d2 = dx * dx + dy * dy;
+		if (d2 < radiusWantedSq) {
+			const float sign = (teamSide == Config::AWAY_TEAM_SIDE) ? 1.f : -1.f;
+			pos.x = centerX + sign * radiusWanted;
+		}
+
+		// 3) Clamp to pitch bounds.
+		pos.x = std::clamp(pos.x, Config::PLAYER_MIN_X, Config::PLAYER_MAX_X);
+		pos.y = std::clamp(pos.y, Config::PLAYER_MIN_Y, Config::PLAYER_MAX_Y);
+		mPlayers[id].setPosition(pos);
+	}
+}
+
+void World::kickKickoffPassToTeammate(int kickoffOwnerId) {
+	// SANTI 28/04/2026: Kickoff pass should be a clean "opening pass" before
+	// we allow open play. Do not allow interceptions here.
+	if (kickoffOwnerId < 0) return;
+	if (kickoffOwnerId >= static_cast<int>(Config::kNumPlayers)) return;
+	if (mBall.getOwner() != kickoffOwnerId) return;
+
+	// Do not start another kickoff pass if one is already in flight.
+	if (mBall.isGuidedInFlight()) return;
+
+	const int receiverId = chooseBestPassReceiverId(*this, kickoffOwnerId);
+	if (receiverId < 0) return;
+
+	const float sign = (kickoffOwnerId < 4) ? 1.f : -1.f;
+	const sf::Vector2f offset(Config::BALL_ATTACH_OFFSET_X * sign, 0.f);
+
+	const sf::Vector2f startPos = mPlayers[kickoffOwnerId].getPosition() + offset;
+	const sf::Vector2f endPos = mPlayers[receiverId].getPosition() + offset;
+
+	mBall.setPosition(startPos);
+	mBall.setVelocity(sf::Vector2f(0.f, 0.f));
+
+	// SANTI: Guided travel means no possession change until the pass resolves.
+	mBall.beginGuidedTravel(endPos, Config::GUARANTEED_PASS_SPEED, receiverId);
 }
 
 

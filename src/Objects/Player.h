@@ -69,11 +69,28 @@ public:
 			mFacingDirection = moveDir;
 		}
 
-		sf::Vector2f pos = getPosition() + (mVelocity * dt);
-		pos.x = std::clamp(pos.x, Config::PLAYER_MIN_X,
-			Config::PLAYER_MAX_X);
-		pos.y = std::clamp(pos.y, Config::PLAYER_MIN_Y,
-			Config::PLAYER_MAX_Y);
+		const sf::Vector2f originalPos = getPosition();
+		sf::Vector2f pos = originalPos + (mVelocity * dt);
+
+		// SANTI 28/04/2026: Goalkeepers should not roam outside the goal mouth.
+		// Old project behavior: goalkeeper X stays fixed, and Y is clamped within
+		// the goal's vertical opening (between posts).
+		if (mIsGoalkeeper) {
+			// SANTI 28/04/2026: X must be fixed to the goalie's home/away slot,
+			// not to the current position. This prevents PhysicsEngine separation
+			// pushes from permanently drifting the goalkeeper away from the goal.
+			const bool isHomeKeeper = (mTeam == Config::HOME_TEAM_SIDE);
+			pos.x = isHomeKeeper ? Config::GOALKEEPER_X_LEFT : Config::GOALKEEPER_X_RIGHT;
+			mVelocity.x = 0.f;
+
+			const float yMin = Config::GOAL_Y_TOP + Config::PLAYER_HALF_SIZE;
+			const float yMax = Config::GOAL_Y_BOTTOM - Config::PLAYER_HALF_SIZE;
+			pos.y = std::clamp(pos.y, yMin, yMax);
+		}
+		else {
+			pos.x = std::clamp(pos.x, Config::PLAYER_MIN_X, Config::PLAYER_MAX_X);
+			pos.y = std::clamp(pos.y, Config::PLAYER_MIN_Y, Config::PLAYER_MAX_Y);
+		}
 		setPosition(pos);
 	}
 

@@ -53,6 +53,11 @@ public:
 	std::uint8_t getControlledHomePlayerId() const { return mControlledHomePlayerId; }
 	std::uint8_t getControlledAwayPlayerId() const { return mControlledAwayPlayerId; }
 
+	// SANTI 28/04/2026: Kickoff side controls who starts with the ball on restart.
+	// 0 = Home, 1 = Away.
+	void setKickoffTeamSide(std::uint8_t teamSide) { mKickoffTeamSide = teamSide; }
+	std::uint8_t getKickoffTeamSide() const { return mKickoffTeamSide; }
+
 
 private:
 
@@ -79,6 +84,10 @@ private:
 	// false = control nearest outfield defender, true = control second-nearest outfield defender.
 	bool mHomeDefenseSecondClosest = false;
 	bool mAwayDefenseSecondClosest = false;
+
+	// SANTI 28/04/2026: Which team takes the next kickoff (0 = Home, 1 = Away).
+	// Real football: the conceding team kicks off after a goal.
+	std::uint8_t mKickoffTeamSide = Config::HOME_TEAM_SIDE;
 
 	std::unique_ptr<MatchState> mCurrentState;
 };

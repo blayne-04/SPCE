@@ -36,11 +36,100 @@ KickoffState::KickoffState()
 }
 
 void KickoffState::update(Match& match, const FrameInput& frameData, float dt) {
-	match.TransitionTo(std::make_unique<PlayingState>());
+	World& world = match.getWorld();
+	Ball& ball = world.ball();
+
+	// SANTI 28/04/2026: Kickoff is a real phase.
+	// The match remains in KickoffState until the kicking team completes an opening pass.
+	const int kickoffTeamSide = static_cast<int>(match.getKickoffTeamSide());
+	const int kickoffOwnerId = (kickoffTeamSide == Config::AWAY_TEAM_SIDE) ? 4 : 0;
+
+	// SANTI 28/04/2026: During kickoff, the defending team cannot cross midfield and
+	// must stay outside the kickoff circle.
+	//
+	// We enforce this in TWO ways:
+	// 1) Ignore defending-team inputs (so AI cannot "press" early).
+	// 2) Clamp defending-team positions via World::enforceKickoffDefenderRestrictions().
+	FrameInput sanitized = frameData;
+
+	const bool kickoffIsHome = (kickoffTeamSide == Config::HOME_TEAM_SIDE);
+	const int defStart = kickoffIsHome ? 4 : 0;
+	const int defEndInclusive = kickoffIsHome ? 7 : 3;
+
+	for (int id = defStart; id <= defEndInclusive; ++id) {
+		// SANTI 28/04/2026: Allow movement during kickoff (players can reposition),
+		// but block all ball-interaction actions until open play begins.
+		sanitized.inputs[static_cast<std::size_t>(id)].shootDown = false;
+		sanitized.inputs[static_cast<std::size_t>(id)].passDown = false;
+		sanitized.inputs[static_cast<std::size_t>(id)].tackleDown = false;
+		sanitized.inputs[static_cast<std::size_t>(id)].switchDown = false;
+		sanitized.inputs[static_cast<std::size_t>(id)].lungeDown = false;
+	}
+
+	// SANTI 28/04/2026: Keep the kickoff taker stationary on the center spot
+	// until the opening pass is taken. This avoids awkward "ball teleports" if the
+	// player moves before kickoff.
+	if (!mKickoffPassStarted) {
+		sanitized.inputs[static_cast<std::size_t>(kickoffOwnerId)].moveDirection = sf::Vector2f(0.f, 0.f);
+		sanitized.inputs[static_cast<std::size_t>(kickoffOwnerId)].shootDown = false;
+		sanitized.inputs[static_cast<std::size_t>(kickoffOwnerId)].tackleDown = false;
+		sanitized.inputs[static_cast<std::size_t>(kickoffOwnerId)].switchDown = false;
+		sanitized.inputs[static_cast<std::size_t>(kickoffOwnerId)].lungeDown = false;
+	}
+
+	// Keep the ball attached to the kickoff owner until the pass begins.
+	// World::resetKickoff(...) sets this up, but we guard against stale state.
+	if (!mKickoffPassStarted) {
+		if (ball.getOwner() != kickoffOwnerId) {
+			ball.setOwner(kickoffOwnerId);
+		}
+		world.attachBallToOwnerIfAny();
+	}
+
+	// Allow player movement for the kicking team. Defenders are frozen by sanitation above.
+	world.applyFrameMovement(sanitized, dt);
+	PhysicsEngine::resolvePlayerSeparation(world, dt);
+
+	// SANTI 28/04/2026: Always enforce that no one can stand inside the goal mouth.
+	// This prevents players drifting into the net during restarts.
+	world.enforceNoPlayersInsideGoalMouth();
+
+	// Enforce real-football kickoff constraints on the defending team.
+	world.enforceKickoffDefenderRestrictions(kickoffTeamSide);
+
+	// Start the opening kickoff pass (only pass is allowed to begin play).
+	if (!mKickoffPassStarted) {
+		if (world.isPassPressed(sanitized, kickoffOwnerId)) {
+			world.kickKickoffPassToTeammate(kickoffOwnerId);
+			mKickoffPassStarted = true;
+		}
+	}
+
+	// Advance the ball if it is loose (kickoff pass is guided travel with owner = -1).
+	if (ball.getOwner() < 0) {
+		ball.update(dt);
+	}
+
+	// Kickoff completes only when the kickoff pass resolves to a teammate owner.
+	if (mKickoffPassStarted) {
+		if (!ball.isGuidedInFlight() && ball.getOwner() >= 0) {
+			mKickoffPassStarted = false;
+			world.commitActionButtonHistory(sanitized);
+			match.TransitionTo(std::make_unique<PlayingState>());
+			return;
+		}
+	}
+
+	// Maintain edge detection during kickoff so held buttons behave consistently.
+	world.commitActionButtonHistory(sanitized);
 }
 
 void KickoffState::onEnter(Match& match) {
-	match.getWorld().resetKickoff();
+	// SANTI 28/04/2026: Reset kickoff runtime state.
+	mKickoffPassStarted = false;
+
+	// Reset world positions and ball ownership for the correct kicking side.
+	match.getWorld().resetKickoff(static_cast<int>(match.getKickoffTeamSide()));
 }
 
 void KickoffState::onExit(Match& match)
@@ -73,6 +162,10 @@ void PlayingState::update(Match& match, const FrameInput& frameData, float dt) {
 	// SANTI: Resolve overlaps after movement so players don't stack.
 	PhysicsEngine::resolvePlayerSeparation(world, dt);
 
+	// SANTI 28/04/2026: Prevent any players from drifting into the goal mouth.
+	// This is enforced regardless of possession for football-sense.
+	world.enforceNoPlayersInsideGoalMouth();
+
 
 	// 2) Possession mechanics + ball stepping.
 	//
@@ -93,6 +186,10 @@ void PlayingState::update(Match& match, const FrameInput& frameData, float dt) {
 		ownerId = ball.getOwner();
 		if (ownerId < 0) return;
 		if (ownerId >= static_cast<int>(Config::kNumPlayers)) return;
+
+		// SANTI 28/04/2026: While a goalkeeper holds the ball, keep opponents out
+		// of the goalkeeper's six-yard box so distribution stays playable.
+		world.enforceGoalkeeperSixYardBoxProtection();
 
 		// SANTI: Input is DOWN-state; World computes edges for pass/shoot.
 		if (world.isPassPressed(frameData, ownerId)) {
@@ -124,12 +221,17 @@ void PlayingState::update(Match& match, const FrameInput& frameData, float dt) {
 	// PlayingState owns the rule: "if goal, increment score and restart at kickoff".
 	if (world.homeGoal().checkBallCollision(ball)) {
 		match.incrementScore(TEAMS::TEAM2); // Away scored in left/home goal.
+		// SANTI 28/04/2026: Real football kickoff rule.
+		// The conceding team (Home) takes the next kickoff.
+		match.setKickoffTeamSide(Config::HOME_TEAM_SIDE);
 		match.TransitionTo(std::make_unique<KickoffState>());
 		return;
 	}
 
 	if (world.awayGoal().checkBallCollision(ball)) {
 		match.incrementScore(TEAMS::TEAM1); // Home scored in right/away goal.
+		// SANTI 28/04/2026: Conceding team (Away) takes the next kickoff.
+		match.setKickoffTeamSide(Config::AWAY_TEAM_SIDE);
 		match.TransitionTo(std::make_unique<KickoffState>());
 		return;
 	}

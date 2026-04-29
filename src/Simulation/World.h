@@ -27,7 +27,10 @@ public:
 
 	// SANTI: Deterministic reset for kickoff.
 	//        Resets all objects to their initial positions (home/away formations).
-	void resetKickoff();
+	// SANTI 28/04/2026: kickoffTeamSide determines which team starts with the ball:
+	// - Config::HOME_TEAM_SIDE -> player 0 starts on the center spot
+	// - Config::AWAY_TEAM_SIDE -> player 4 starts on the center spot
+	void resetKickoff(int kickoffTeamSide = Config::HOME_TEAM_SIDE);
 
 	// ------------------------------------------------------------------------
 	// SNAPSHOT PRODUCTION (Step 4 deliverable)
@@ -84,6 +87,23 @@ public:
 	// Call site: PlayingState::update, after movement + attachment, before pass/shot.
 	void resolveTackleSteals(const FrameInput& frameData, float dt);
 
+	// SANTI 28/04/2026: Goalkeeper holding protection.
+	// When the ball is owned by a goalkeeper, NO other player (teammate or opponent)
+	// is allowed to enter that goalkeeper's six-yard box. This keeps distribution
+	// playable and avoids "tackle spam" and weird clustering behind the keeper.
+	//
+	// Call site: PlayingState::update, after movement and after ball attachment.
+	void enforceGoalkeeperSixYardBoxProtection();
+
+	// SANTI 28/04/2026: Hard rule: no players should ever be able to stand "inside"
+	// the goal mouth (inside the net area). This was a visible issue in playtests:
+	// teammates (and sometimes opponents) could drift into the goal rectangle,
+	// which does not make football sense and breaks immersion.
+	//
+	// This is enforced for BOTH goals, for BOTH teams, every tick.
+	// Call site: MatchStates (KickoffState + PlayingState), after movement/separation.
+	void enforceNoPlayersInsideGoalMouth();
+
 	Goal& homeGoal() { return mHomeGoal; }          // SANTI
 	Goal& awayGoal() { return mAwayGoal; }          // SANTI
 	const Goal& homeGoal() const { return mHomeGoal; } // SANTI
@@ -97,6 +117,22 @@ public:
 	// SANTI: "Guaranteed shot" helper used by PlayingState when the owner presses shootDown.
 	// World aims at opponent goal center and applies the same interception query idea.
 	void kickGuaranteedShotWithInterception(int ownerId);
+
+	// ------------------------------------------------------------------------
+	// KICKOFF RULES (SANTI 28/04/2026)
+	// ------------------------------------------------------------------------
+	// The match is in KickoffState until the kicking team completes an opening pass.
+	// During this phase, kickoff placement rules are enforced:
+	// - Every non-kicker player stays in their own half (cannot cross midfield)
+	// - Every non-kicker player stays outside the kickoff circle
+	//
+	// KickoffState calls these helpers to keep MatchStates.cpp readable.
+	void enforceKickoffDefenderRestrictions(int kickoffTeamSide);
+
+	// SANTI 28/04/2026: Starts the kickoff opening pass (no interception query).
+	// This mirrors real football: opponents cannot challenge inside the kickoff circle.
+	// The ball will be assigned to the receiver only when the guided travel completes.
+	void kickKickoffPassToTeammate(int kickoffOwnerId);
 
 	// SANTI 28/04/2026: Host-side input edge helpers.
 	// Packets carry DOWN state; host computes "pressed this frame" by comparing

@@ -20,4 +20,9 @@ private:
 	// This is a tiny port of the old project's AIAttackDecisionSystem timers.
 	// It ensures pass/shoot are one-tick impulses, not held buttons.
 	std::array<float, Config::kNumPlayers> mBallActionCooldownSec{};
+
+	// SANTI 28/04/2026: Final-third stall timer (seconds) per player.
+	// If an AI carrier stays in the attacking final third too long, we force
+	// a pass/shot so the game does not stall in front of goal.
+	std::array<float, Config::kNumPlayers> mFinalThirdStallSec{};
 };

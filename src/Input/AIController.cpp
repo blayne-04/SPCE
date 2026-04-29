@@ -43,7 +43,25 @@ namespace {
 	// here gives AI a different top speed without changing Player.
 	static float aiSpeedScale() {
 		if (Config::PLAYER_SPEED <= Config::VECTOR_NORMALIZATION_EPSILON) return 1.f;
-		return std::clamp(Config::AI_SPEED / Config::PLAYER_SPEED, 0.f, 1.f);
+
+		// SANTI 28/04/2026: Apply difficulty scaling so singleplayer feels fairer.
+		// This is the simplest "make AI less perfect" lever without changing decisions.
+		const float base = Config::AI_SPEED / Config::PLAYER_SPEED;
+		return std::clamp(base * Config::AI_DIFFICULTY_SPEED_SCALE, 0.f, 1.f);
+	}
+
+	// SANTI 28/04/2026: "Final third" check (same idea as the old project).
+	// Returns true if position is far enough into the attacking direction.
+	static bool isInFinalThird(sf::Vector2f pos, bool attackerIsHome) {
+		const float attackRange = Config::PLAYER_MAX_X - Config::PLAYER_MIN_X;
+		if (attackRange <= Config::VECTOR_NORMALIZATION_EPSILON) return false;
+
+		const float progress = attackerIsHome
+			? (pos.x - Config::PLAYER_MIN_X) / attackRange
+			: (Config::PLAYER_MAX_X - pos.x) / attackRange;
+
+		const float clamped = std::clamp(progress, 0.f, 1.f);
+		return clamped >= Config::AI_ATTACKING_PROGRESS_FINAL_THIRD;
 	}
 
 	// SANTI 28/04/2026: Returns the nearest outfield teammate (excluding goalkeeper) to a point.
@@ -99,6 +117,28 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 
 	const sf::Vector2f toBall = s.ballPosition - me.position;
 
+	// SANTI 28/04/2026: Kickoff behavior (real football).
+	// If the AI is the kickoff taker (has the ball during KickoffState),
+	// it must start play by making the opening pass.
+	if (s.currentState == 0 && iHaveBall) {
+		// SANTI 28/04/2026: Ignore cooldown here. Kickoff would deadlock if the
+		// taker refuses to pass due to a leftover timer from pre-goal gameplay.
+		out.passDown = true;
+		out.moveDirection = sf::Vector2f(0.f, 0.f);
+		return out;
+	}
+
+	// SANTI 28/04/2026: Track how long THIS player has stalled in the final third
+	// while carrying the ball. This forces an action so AI doesn't dribble forever.
+	if (dt > 0.f) {
+		if (iHaveBall && isInFinalThird(me.position, meIsHome)) {
+			mFinalThirdStallSec[playerID] += dt;
+		}
+		else {
+			mFinalThirdStallSec[playerID] = 0.f;
+		}
+	}
+
 	// Goalkeeper: simple "track ball Y" behavior for MVP.
 	if (me.isGoalkeeper) {
 		// SANTI 28/04/2026: If the goalkeeper has possession, pass immediately.
@@ -115,16 +155,12 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 		}
 
 		// Default keeper behavior: track the ball's Y position.
-		// Keep keeper movement mostly vertical to feel like a keeper.
-		if (toBall.y > Config::VECTOR_NORMALIZATION_EPSILON) {
-			out.moveDirection = sf::Vector2f(0.f, 1.f * speedScale);
-		}
-		else if (toBall.y < -Config::VECTOR_NORMALIZATION_EPSILON) {
-			out.moveDirection = sf::Vector2f(0.f, -1.f * speedScale);
-		}
-		else {
-			out.moveDirection = sf::Vector2f(0.f, 0.f);
-		}
+		// SANTI 28/04/2026: Use a proportional move so the keeper slows down
+		// as it approaches the ball's Y (similar to the old smoothing approach).
+		const float dy = toBall.y;
+		const float scale = 60.f; // pixels that map to full stick deflection
+		const float yAxis = std::clamp(dy / scale, -1.f, 1.f);
+		out.moveDirection = sf::Vector2f(0.f, yAxis * speedScale);
 		return out;
 	}
 
@@ -143,6 +179,26 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 		const float pressureDistSq = nearestOpponentDistSq(s, meIsHome, me.position);
 		const float pressureDist = std::sqrt(pressureDistSq);
 
+		// SANTI 28/04/2026: Final-third "force action" rule from the old project.
+		// If we stall too long near goal, force either a pass or a shot.
+		const bool forceFinalThirdAction =
+			(mFinalThirdStallSec[playerID] >= Config::AI_FINAL_THIRD_FORCE_ACTION_SECONDS);
+
+		if (canAct && forceFinalThirdAction) {
+			// If reasonably close, shoot. Otherwise, pass.
+			if (distToGoalX <= Config::AI_SHOOT_DISTANCE_X * 1.35f) {
+				out.shootDown = true;
+			}
+			else {
+				out.passDown = true;
+			}
+
+			out.moveDirection = sf::Vector2f(0.f, 0.f);
+			mBallActionCooldownSec[playerID] = Config::AI_BALL_ACTION_INTERVAL_SECONDS;
+			mFinalThirdStallSec[playerID] = 0.f;
+			return out;
+		}
+
 		// SANTI 28/04/2026: Decision rules (MVP, deterministic).
 		// 1) If close enough to shoot, shoot.
 		// 2) If under pressure, pass.
@@ -151,6 +207,7 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 			out.shootDown = true;
 			out.moveDirection = sf::Vector2f(0.f, 0.f);
 			mBallActionCooldownSec[playerID] = Config::AI_BALL_ACTION_INTERVAL_SECONDS;
+			mFinalThirdStallSec[playerID] = 0.f;
 			return out;
 		}
 
@@ -158,6 +215,7 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 			out.passDown = true;
 			out.moveDirection = sf::Vector2f(0.f, 0.f);
 			mBallActionCooldownSec[playerID] = Config::AI_BALL_ACTION_INTERVAL_SECONDS;
+			mFinalThirdStallSec[playerID] = 0.f;
 			return out;
 		}
 
@@ -222,7 +280,11 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 		const bool ownerIsHome = isHomeId(static_cast<std::uint8_t>(ballOwner));
 		if (ownerIsHome != meIsHome) {
 			const float d2 = distSq(me.position, s.players[ballOwner].position);
-			const float r = Config::BALL_STEAL_RADIUS;
+
+			// SANTI 28/04/2026: Nerf AI tackling so it doesn't feel unfair.
+			// Humans can still attempt tackles from a bit further (skill expression),
+			// but AI should only tackle when clearly in range.
+			const float r = Config::AI_TACKLE_TRIGGER_RADIUS;
 			if (d2 <= r * r) {
 				out.tackleDown = true;
 			}

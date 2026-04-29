@@ -28,6 +28,18 @@ namespace Config {
 	constexpr float FIELD_CENTER_Y = WINDOW_HEIGHT / 2.f;
 
 	// ----------------------------------------------------------------------------
+	// KICKOFF (SANTI 28/04/2026)
+	// ----------------------------------------------------------------------------
+	// Real-football kickoff constraint: the defending team must stay outside the
+	// center circle until the kickoff pass is completed.
+	//
+	// NOTE: This is a gameplay constant (not networking). It is applied only by
+	// the host simulation during KickoffState.
+	// SANTI 28/04/2026: Tuned smaller so kickoff looks less "locked down" on
+	// an 800x600 pitch while still enforcing the rule.
+	constexpr float KICKOFF_CIRCLE_RADIUS = 65.f;
+
+	// ----------------------------------------------------------------------------
 	// GOAL GEOMETRY
 	// ----------------------------------------------------------------------------
 
@@ -57,6 +69,23 @@ namespace Config {
 	// ----------------------------------------------------------------------------
 	// AI BEHAVIOR (General)
 	// ----------------------------------------------------------------------------
+
+	// SANTI 28/04/2026: Difficulty knobs.
+	// The AI can feel "too perfect" in an MVP because it has:
+	// - zero reaction delay
+	// - perfect input (no stick drift / no mis-presses)
+	// - deterministic tackle success once in range
+	//
+	// This multiplier is an easy first step to make singleplayer feel fairer
+	// without rewriting the decision logic.
+	// SANTI 28/04/2026: Further nerf. AI was still feeling too oppressive in
+	// singleplayer playtests because it never makes input mistakes.
+	constexpr float AI_DIFFICULTY_SPEED_SCALE = 0.75f;
+
+	// SANTI 28/04/2026: AI should not spam tackles from too far away.
+	// Humans can still do that (skill expression), but AI gets a smaller trigger radius.
+	// SANTI 28/04/2026: Further nerf. Make AI commit to tackles only when very close.
+	constexpr float AI_TACKLE_TRIGGER_RADIUS = 15.f;
 
 	constexpr float AI_SPEED = 150.f;
 	constexpr float AI_FORMATION_BALL_INFLUENCE = 0.25f;
@@ -102,7 +131,9 @@ namespace Config {
 	constexpr float AI_SHOT_POST_TARGET_MARGIN_Y = 18.f;
 	constexpr float AI_ATTACKING_PROGRESS_FINAL_THIRD = 0.67f;
 	constexpr float AI_ATTACK_INTENT_DURATION_SECONDS = 0.8f;
-	constexpr float AI_BALL_ACTION_INTERVAL_SECONDS = 0.25f;
+	// SANTI 28/04/2026: Slow down AI pass/shot cadence so it does not feel
+	// "frame-perfect" compared to a human.
+	constexpr float AI_BALL_ACTION_INTERVAL_SECONDS = 0.33f;
 
 	// ----------------------------------------------------------------------------
 	// BALL PHYSICS & STEALING
@@ -143,6 +174,25 @@ namespace Config {
 	constexpr float POST_KICK_PICKUP_DELAY_SECONDS = 0.12f;
 
 	// ----------------------------------------------------------------------------
+	// SHOOTING ACCURACY / GOALKEEPER SAVES (SANTI 28/04/2026)
+	// ----------------------------------------------------------------------------
+	// You asked for "probability to score" to correlate with shot distance so
+	// players are incentivized to get closer before shooting.
+	//
+	// Implementation: if a shot is not intercepted along the corridor, the
+	// defending goalkeeper gets a distance-based chance to "save" the shot.
+	// Saved shots end at the goalkeeper position (so they do NOT count as goals).
+	//
+	// Distances are measured in X (toward the goal) because your game is mostly
+	// left-to-right attack.
+	constexpr float SHOT_SAVE_DISTANCE_CLOSE_X = 140.f;
+	constexpr float SHOT_SAVE_DISTANCE_FAR_X = 420.f;
+
+	// Save chance at close vs far distances.
+	constexpr float SHOT_SAVE_CHANCE_CLOSE = 0.15f;
+	constexpr float SHOT_SAVE_CHANCE_FAR = 0.75f;
+
+	// ----------------------------------------------------------------------------
 	// TEAM & FORMATION
 	// ----------------------------------------------------------------------------
 
@@ -150,6 +200,18 @@ namespace Config {
 	constexpr float GOALKEEPER_X_LEFT = 60.f;
 	constexpr float GOALKEEPER_X_RIGHT = 740.f;
 	constexpr float GOALKEEPER_TRACKING_SMOOTHING = 0.1f;
+
+	// ----------------------------------------------------------------------------
+	// GOAL AREA / SIX-YARD BOX (SANTI 28/04/2026)
+	// ----------------------------------------------------------------------------
+	// Used to prevent attackers from crowding the goalkeeper while the goalkeeper
+	// is holding the ball (lets the keeper distribute like real football).
+	constexpr float SIX_YARD_BOX_DEPTH = 125.f;
+	constexpr float SIX_YARD_BOX_MARGIN_Y = 25.f;
+
+	// SANTI 28/04/2026: If a goalkeeper holds the ball too long, force a distribution
+	// pass so the match does not stall (small-sided "6-second rule" style).
+	constexpr float GOALKEEPER_HOLD_AUTO_DISTRIBUTE_SECONDS = 4.0f;
 
 	constexpr float FORMATION_HOME_START_X = 150.f;
 	constexpr float FORMATION_AWAY_START_X = 500.f;
