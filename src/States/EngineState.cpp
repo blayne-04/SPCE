@@ -64,9 +64,26 @@ void StartMenuState::tick(GameEngine& engine, float dt) {
 			engine.transitionTo(std::make_unique<SinglePlayerPlayingState>());
 		}
 		else if (mBtnHost && isSpriteClicked(*mBtnHost, window)) {
+			/* Host initialization */
+			engine.getNetwork().startHost(Config::HOST_PORT);
+			std::optional<sf::IpAddress> myIP = sf::IpAddress::getLocalAddress();
+			if (myIP) {
+				std::cout << "Host: Listening on " << myIP->toString() 
+				          << ":" << Config::HOST_PORT << std::endl;
+				std::cout << "Players should connect to this IP address!" << std::endl;
+			}
 			engine.transitionTo(std::make_unique<HostPlayingState>());
 		}
 		else if (mBtnJoin && isSpriteClicked(*mBtnJoin, window)) {
+			/* Client connects to host */
+			std::optional<sf::IpAddress> hostIP = sf::IpAddress::resolve("10.57.227.196");
+			if (hostIP) {
+				engine.getNetwork().startClient(*hostIP, Config::HOST_PORT);
+				std::cout << "Client: Connecting to " << hostIP->toString() 
+				          << ":" << Config::HOST_PORT << std::endl;
+			} else {
+				std::cout << "Error: Could not resolve host!" << std::endl;
+			}
 			engine.transitionTo(std::make_unique<ClientPlayingState>());
 		}
 		else if (mBtnSettings && isSpriteClicked(*mBtnSettings, window)) {
