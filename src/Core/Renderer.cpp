@@ -86,6 +86,7 @@ namespace {
 	static constexpr int kHomeWhitePantsColor = 1;
 	static constexpr int kAwayBlackPantsColor = 3;
 	static constexpr int kGoalkeeperBlackUniformColor = 3;
+	static constexpr int kWhiteOutfieldShirtColor = 1;
 	static constexpr int kApprovedShirtColorCount = 8;
 
 	// SANTI 30/04/26
@@ -293,6 +294,27 @@ namespace {
 	}
 
 	// SANTI 30/04/26
+	// Picks an Away shirt that exists, differs from Home, and is not white.
+	// This keeps the usual soccer contrast: Home may wear white, Away should not.
+	static int firstValidAwayShirtColorFromShuffledList(
+		const std::array<int, kApprovedShirtColorCount>& randomizedShirtColors,
+		const std::string& shirtBasePath,
+		int homeShirtColor)
+	{
+		for (int shirtColor : randomizedShirtColors) {
+			if (shirtColor == homeShirtColor) continue;
+			if (shirtColor == kWhiteOutfieldShirtColor) continue;
+			if (!uniformFolderExistsForAllDirections(shirtBasePath, shirtColor)) continue;
+			return shirtColor;
+		}
+
+		return firstDifferentAvailableShirtColorFromShuffledList(
+			randomizedShirtColors,
+			shirtBasePath,
+			homeShirtColor);
+	}
+
+	// SANTI 30/04/26
 	// Chooses randomized Home/Away shirt colors for outfield players.
 	static std::array<int, 2> randomizedTeamShirtColors() {
 		const std::string shirtBasePath = "assets/textures/Penzilla Protagonist/ShirtSheets/";
@@ -300,7 +322,7 @@ namespace {
 		const int homeShirtColor = firstAvailableShirtColorFromShuffledList(
 			randomizedShirtColors,
 			shirtBasePath);
-		const int awayShirtColor = firstDifferentAvailableShirtColorFromShuffledList(
+		const int awayShirtColor = firstValidAwayShirtColorFromShuffledList(
 			randomizedShirtColors,
 			shirtBasePath,
 			homeShirtColor);
