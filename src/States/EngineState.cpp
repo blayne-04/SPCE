@@ -2,6 +2,7 @@
 #include "../Core/GameEngine.h"
 #include "../Common/Constants.h"
 #include <iostream>
+#include <optional> // SANTI 29/04/26: for resolving Config::DEFAULT_HOST_ADDRESS
 
 /**************************
 * START MENU STATE
@@ -228,15 +229,15 @@ void SettingsMenuState::updateIcons()
 * PAUSE MENU STATE
 **************************/
 
-void PauseMenuState::tick(GameEngine& engine, float dt) 
+void PauseMenuState::tick(GameEngine& engine, float dt)
 {
 	/* TODO: Implement input handling for pause menu */
 }
 
-void PauseMenuState::render(GameEngine& engine) 
+void PauseMenuState::render(GameEngine& engine)
 {
 	auto& window = engine.getWindow();
-	
+
 	/* Draw semi-transparent overlay (DO NOT call window.clear()) */
 	sf::RectangleShape overlay(sf::Vector2f(static_cast<float>(Config::WINDOW_WIDTH), static_cast<float>(Config::WINDOW_HEIGHT)));
 	overlay.setFillColor(sf::Color(0, 0, 0, 180));  /* Black with 180 alpha */
@@ -248,9 +249,26 @@ void PauseMenuState::render(GameEngine& engine)
 * CLIENT PLAYING STATE
 **************************/
 
-void ClientPlayingState::tick(GameEngine& engine, float dt) 
+void ClientPlayingState::tick(GameEngine& engine, float dt)
 {
 	auto& network = engine.getNetwork();
+
+	// SANTI 28/04/2026: Start the client socket exactly once.
+	// For LAN play, change Config::DEFAULT_HOST_ADDRESS in Common/Constants.h.
+	if (!mNetworkStarted) {
+		// SANTI 29/04/26: SFML 3 removed the IpAddress(string) constructor.
+		// Resolve from our config string. If resolution fails, fall back to localhost
+		// so the game still runs in single-machine tests.
+		const std::optional<sf::IpAddress> resolved =
+			sf::IpAddress::resolve(Config::DEFAULT_HOST_ADDRESS);
+
+		const sf::IpAddress hostAddress = resolved.has_value()
+			? *resolved
+			: sf::IpAddress::LocalHost;
+
+		network.startClient(hostAddress, Config::HOST_PORT);
+		mNetworkStarted = true;
+	}
 
 	/* Check for pause */
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
@@ -269,17 +287,41 @@ void ClientPlayingState::tick(GameEngine& engine, float dt)
 	}
 
 	/* Normal gameplay : send input to host */
-	InputPacket clientInput = mInputHandler.getLocalInput(mMyPlayerID);
+	// SANTI 28/04/2026: After we receive the first snapshot, route inputs using the
+	// host-authoritative controlledAwayPlayerId (enables defensive switching).
+	std::uint8_t inputPlayerId = mMyPlayerID;
+	if (mHaveState) {
+		inputPlayerId = mLatestState.controlledAwayPlayerId;
+	}
+
+	// SANTI 29/04/26: IMPORTANT for local testing with 2 instances on the same PC.
+	//
+	// InputHandler uses sf::Keyboard::isKeyPressed which reads the GLOBAL keyboard state,
+	// even if a window is out of focus. This means if you run a Host window and a Client
+	// window on the same machine, BOTH processes would read the same key presses and it
+	// would feel like you're "controlling both teams at once".
+	//
+	// Fix: only the focused window is allowed to generate real input. The unfocused window
+	// sends a neutral packet (no movement, no buttons). This does NOT affect real LAN play,
+	// because host and client are on different machines with different keyboards.
+	InputPacket clientInput{};
+	clientInput.playerId = inputPlayerId;
+
+	const bool windowHasFocus = engine.getWindow().hasFocus();
+	if (windowHasFocus) {
+		clientInput = mInputHandler.getLocalInput(inputPlayerId);
+	}
 	network.sendPlayerInput(clientInput);
 
 	/* Receive and apply latest game state from host */
 	GameStatePacket latestGameState;
 	if (network.receiveLatestGameState(latestGameState)) {
 		mLatestState = latestGameState; /* Store for rendering */
+		mHaveState = true;
 	}
 }
 
-void ClientPlayingState::render(GameEngine& engine) 
+void ClientPlayingState::render(GameEngine& engine)
 {
 	auto& window = engine.getWindow();
 	mRenderer.render(window, mLatestState);
@@ -289,26 +331,64 @@ void ClientPlayingState::render(GameEngine& engine)
 * HOST PLAYING STATE
 **************************/
 
-void HostPlayingState::tick(GameEngine& engine, float dt) 
+void HostPlayingState::tick(GameEngine& engine, float dt)
 {
 	auto& network = engine.getNetwork();
 	auto& match = engine.getMatch();
+
+	// SANTI 28/04/2026: Start the host socket exactly once (bind to fixed port).
+	if (!mNetworkStarted) {
+		network.startHost(Config::HOST_PORT);
+		mNetworkStarted = true;
+
+		// SANTI 28/04/2026: For single-client MVP, host controls Home player 0.
+		// Client is assigned Away player 4 by handshake (see NetworkManager).
+		match.setControlledPlayerIds(0, 4);
+	}
 
 	/* Check for pause */
 	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
 		engine.pushState(std::make_unique<PauseMenuState>());
 	}
-	
-	/* Handle any new clients trying to join */
-	network.handleHandshakeRequests();
 
-	/* Intake host input in slot 0 */
-	FrameInput frameData;
-	frameData.inputs[0] = mInputHandler.getLocalInput(0); /* HOST_ID = 0 */
+	/* Handle any new clients trying to join */
+	// SANTI 29/04/26: Do NOT call handleHandshakeRequests() here.
+	//
+	// Reason:
+	// - handleHandshakeRequests() drains the UDP socket and only processes JOIN_REQUEST.
+	// - Any INPUT packets received during that drain would be discarded.
+	//
+	// pollIncomingInputs() already handles JOIN_REQUEST (and INPUT) correctly in one place,
+	// so HostPlayingState should rely on pollIncomingInputs() only.
+	//
+	// This makes networking behavior stable and avoids "missing client input" glitches.
+
+	// SANTI 28/04/2026: Host input is always for the currently controlled HOME player.
+	// This enables defensive switching and "control the ball owner" without changing networking.
+	const std::uint8_t hostControlledId = match.getControlledHomePlayerId();
+
+	FrameInput frameData{};
+
+	// SANTI 29/04/26: Same local-two-instances fix as the client side.
+	// Only the focused window is allowed to generate real keyboard input.
+	const bool windowHasFocus = engine.getWindow().hasFocus();
+	if (windowHasFocus) {
+		frameData.inputs[hostControlledId] = mInputHandler.getLocalInput(hostControlledId);
+	}
+	frameData.inputs[hostControlledId].playerId = hostControlledId;
 
 	/* Track human player slots */
 	bool isHuman[Config::kNumPlayers] = { false };
-	isHuman[0] = true;
+	isHuman[hostControlledId] = true;
+
+	// SANTI 28/04/2026: Reserve the away-side controlled player for the client,
+	// even if no INPUT has arrived yet. This prevents AI from moving the client's
+	// player during handshake / packet loss.
+	const std::uint8_t awayControlledId = match.getControlledAwayPlayerId();
+	if (awayControlledId < Config::kNumPlayers) {
+		isHuman[awayControlledId] = true;
+		frameData.inputs[awayControlledId].playerId = awayControlledId;
+	}
 
 	/* Collect client packets */
 	std::queue<InputPacket> remotePackets;
@@ -319,7 +399,7 @@ void HostPlayingState::tick(GameEngine& engine, float dt)
 		InputPacket p = remotePackets.front();
 		remotePackets.pop();
 
-		if (p.playerId >= Config::kNumPlayers) { 
+		if (p.playerId >= Config::kNumPlayers) {
 			std::cout << "Received packet with invalid player ID: " << static_cast<int>(p.playerId) << std::endl;
 			continue;
 		}
@@ -336,7 +416,7 @@ void HostPlayingState::tick(GameEngine& engine, float dt)
 	for (uint8_t i = 0; i < Config::kNumPlayers; ++i) {
 		if (!isHuman[i]) {
 			/* Pass player ID and game state packet to AI */
-			frameData.inputs[i] = mAiController.getAIInput(i, currentState);
+			frameData.inputs[i] = mAiController.getAIInput(i, currentState, dt);
 		}
 	}
 
@@ -348,11 +428,11 @@ void HostPlayingState::tick(GameEngine& engine, float dt)
 	network.sendGameState(currentState);
 }
 
-void HostPlayingState::render(GameEngine& engine) 
+void HostPlayingState::render(GameEngine& engine)
 {
 	auto& window = engine.getWindow();
 	auto& match = engine.getMatch();
-	
+
 	/* Get current game state and render */
 	GameStatePacket currentState;
 	match.getGameState(currentState);
@@ -363,7 +443,7 @@ void HostPlayingState::render(GameEngine& engine)
 * SINGLEPLAYER STATE
 **************************/
 
-void SinglePlayerPlayingState::tick(GameEngine& engine, float dt) 
+void SinglePlayerPlayingState::tick(GameEngine& engine, float dt)
 {
 	auto& match = engine.getMatch();
 
@@ -373,16 +453,21 @@ void SinglePlayerPlayingState::tick(GameEngine& engine, float dt)
 	}
 
 	/* Build frame input */
-	FrameInput frameData;
-	frameData.inputs[0] = mInputHandler.getLocalInput(0); /* Player is always slot 0 */
+	// SANTI 28/04/2026: Singleplayer uses the same control policy as host play.
+	// You always send input for match.getControlledHomePlayerId().
+	const std::uint8_t myId = match.getControlledHomePlayerId();
+
+	FrameInput frameData{};
+	frameData.inputs[myId] = mInputHandler.getLocalInput(myId);
 
 	/* Get current game state for AI */
 	GameStatePacket currentState;
 	match.getGameState(currentState);
 
 	/* Fill remaining slots with AI */
-	for(uint8_t i = 1; i < Config::kNumPlayers; ++i) {
-		frameData.inputs[i] = mAiController.getAIInput(i, currentState);
+	for (uint8_t i = 0; i < Config::kNumPlayers; ++i) {
+		if (i == myId) continue;
+		frameData.inputs[i] = mAiController.getAIInput(i, currentState, dt);
 	}
 
 	/* Update match */
@@ -393,7 +478,7 @@ void SinglePlayerPlayingState::render(GameEngine& engine)
 {
 	auto& window = engine.getWindow();
 	auto& match = engine.getMatch();
-	
+
 	/* Get current game state and render */
 	GameStatePacket currentState;
 	match.getGameState(currentState);

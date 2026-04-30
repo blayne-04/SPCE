@@ -49,6 +49,15 @@ public:
 	// SANTI: host can set these, and snapshot will carry them.
 	void setControlledPlayerIds(std::uint8_t homeId, std::uint8_t awayId);
 
+	// SANTI 28/04/2026: Read current control routing (used by EngineState to map local input).
+	std::uint8_t getControlledHomePlayerId() const { return mControlledHomePlayerId; }
+	std::uint8_t getControlledAwayPlayerId() const { return mControlledAwayPlayerId; }
+
+	// SANTI 28/04/2026: Kickoff side controls who starts with the ball on restart.
+	// 0 = Home, 1 = Away.
+	void setKickoffTeamSide(std::uint8_t teamSide) { mKickoffTeamSide = teamSide; }
+	std::uint8_t getKickoffTeamSide() const { return mKickoffTeamSide; }
+
 
 private:
 
@@ -65,6 +74,20 @@ private:
 	std::int8_t mPossessingTeamId = -1; // SANTI: stable across loose ball if desired
 	std::uint8_t mControlledHomePlayerId = 0; // defaults align with your handshake
 	std::uint8_t mControlledAwayPlayerId = 4;
+
+	// SANTI 28/04/2026: Host-authoritative edge detection for switchDown (I key).
+	// InputPacket is "button down"; Match computes "pressed this frame" from this history.
+	bool mWasHomeSwitchDown = false;
+	bool mWasAwaySwitchDown = false;
+
+	// SANTI 28/04/2026: Manual defensive toggle state.
+	// false = control nearest outfield defender, true = control second-nearest outfield defender.
+	bool mHomeDefenseSecondClosest = false;
+	bool mAwayDefenseSecondClosest = false;
+
+	// SANTI 28/04/2026: Which team takes the next kickoff (0 = Home, 1 = Away).
+	// Real football: the conceding team kicks off after a goal.
+	std::uint8_t mKickoffTeamSide = Config::HOME_TEAM_SIDE;
 
 	std::unique_ptr<MatchState> mCurrentState;
 };

@@ -152,10 +152,11 @@ void NetworkManager::handleHandshakeRequests()
 				continue;
 			}
 
-			// SANTI: Single-client MVP - always assign player ID 1 (first away player).
-			// This puts the client on the away team.
-			// Host controls player 0 (home team).
-			const std::uint8_t assignedPlayerId = 1;
+			// SANTI 28/04/2026: Single-client MVP.
+			// Player IDs are fixed by contract:
+			// 0-3 = Home team, 4-7 = Away team.
+			// Host controls player 0 (home). Client controls player 4 (away).
+			const std::uint8_t assignedPlayerId = 4;
 
 			// Learn/update the client's endpoint
 			mRemoteAddress = *sender;
@@ -207,7 +208,8 @@ void NetworkManager::pollIncomingInputs(std::queue<InputPacket>& outQueue)
 		// SANTI: Handle JOIN_REQUEST during gameplay (late-join or reconnect)
 		if (messageType == static_cast<std::uint8_t>(NetMsg::JOIN_REQUEST)) {
 			if (sender.has_value()) {
-				const std::uint8_t assignedPlayerId = 1;
+				// SANTI 28/04/2026: Keep the same assignment rule as handleHandshakeRequests().
+				const std::uint8_t assignedPlayerId = 4;
 				mRemoteAddress = *sender;
 				mRemotePort = static_cast<uint16>(senderPort);
 
