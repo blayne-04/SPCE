@@ -1,4 +1,20 @@
 #include "Renderer.h"
+
+/**
+ * @file Renderer.cpp
+ * @brief Snapshot-only rendering implementation.
+ *
+ * AI disclosure:
+ * The layered player sprite rendering, randomized visual-only uniforms, cow
+ * sprite animation, ball animation, and fallback drawing were generated/revised
+ * with help from OpenAI Codex.
+ *
+ * Prompt used:
+ * "Help me implement an SFML renderer that consumes GameStatePacket only. Layer
+ * body, pants, and shirt sprites; randomize visual kits without changing
+ * networking; animate cows and ball; and keep the code readable."
+ */
+
 #include "Common/Constants.h"
 #include <algorithm>
 #include <chrono>

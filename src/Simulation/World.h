@@ -1,5 +1,22 @@
 #pragma once
 
+/**
+ * @file World.h
+ * @brief Owns the simulation sandbox: players, ball, goals, cows, and pitch bounds.
+ *
+ * AI disclosure:
+ * The snapshot production, guided pass/shot helpers, cow chaos event, kickoff
+ * restrictions, six-yard box rules, and tackle/steal mechanics were implemented
+ * and documented with help from OpenAI Codex because they go beyond typical
+ * CPTS 122 class design.
+ *
+ * Prompt used:
+ * "Help me implement the World sandbox for a host-authoritative SFML soccer
+ * game. World should own players, ball, goals, cows, kickoff restrictions,
+ * possession helpers, cow collisions, and write a GameStatePacket snapshot
+ * without owning score/timer/match rules."
+ */
+
 #include "../Objects/Goal.h"
 #include "../Objects/Ball.h"
 #include "../Objects/Player.h"
@@ -17,6 +34,13 @@
 //        a GameStatePacket snapshot without any match logic.
 // ============================================================================
 
+/**
+ * @class World
+ * @brief Simulation owner for physical game objects.
+ *
+ * World mutates objects and produces raw snapshots. Match owns score, timer,
+ * current state, and higher-level rules.
+ */
 class World {
 public:
 	// ------------------------------------------------------------------------
@@ -24,6 +48,7 @@ public:
 	// ------------------------------------------------------------------------
 
 	// SANTI: Declare explicitly because we define it in World.cpp (MSVC requires this).
+	/** @brief Construct and initialize the pitch, goals, ball, players, and cows. */
 	World();
 
 	// SANTI: Deterministic reset for kickoff.
@@ -31,6 +56,10 @@ public:
 	// SANTI 28/04/2026: kickoffTeamSide determines which team starts with the ball:
 	// - Config::HOME_TEAM_SIDE -> player 0 starts on the center spot
 	// - Config::AWAY_TEAM_SIDE -> player 4 starts on the center spot
+	/**
+	 * @brief Reset players and ball for a kickoff.
+	 * @param kickoffTeamSide Team that starts with possession.
+	 */
 	void resetKickoff(int kickoffTeamSide = Config::HOME_TEAM_SIDE);
 
 	// ------------------------------------------------------------------------
@@ -40,6 +69,10 @@ public:
 	// SANTI: Fill snapshot fields derived from World objects.
 	//        Copies current player states, ball state, and pitch bounds into 'out'.
 	//        Called by Match::getGameState() each tick.
+	/**
+	 * @brief Copy World-owned object state into a GameStatePacket.
+	 * @param out Snapshot to fill.
+	 */
 	void writeRawState(GameStatePacket& out) const;
 
 	// ------------------------------------------------------------------------

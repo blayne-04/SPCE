@@ -1,5 +1,20 @@
 #pragma once
 
+/**
+ * @file EngineState.h
+ * @brief Application state classes for menu, gameplay, host, client, and single-player modes.
+ *
+ * AI disclosure:
+ * The host/client gameplay state wiring was implemented and documented with help
+ * from OpenAI Codex because it coordinates input, AI, Match, Renderer, and
+ * NetworkManager in one frame pipeline.
+ *
+ * Prompt used:
+ * "Help wire an SFML game-state stack into a host-authoritative soccer game.
+ * HostPlayingState should build FrameInput, update Match, send GameState, and
+ * render snapshots. ClientPlayingState should send input and render latest state."
+ */
+
 #include <SFML/Graphics.hpp>
 #include "../Input/InputHandler.h"
 #include "../Core/Renderer.h"
@@ -10,6 +25,10 @@
 /* Forward declaration */
 class GameEngine;
 
+/**
+ * @class EngineState
+ * @brief Abstract interface for all application states.
+ */
 class EngineState {
 public:
 	EngineState() = default;
@@ -31,6 +50,10 @@ public:
 
 
 
+/**
+ * @class StartMenuState
+ * @brief Main menu state that lets the user choose play mode/settings.
+ */
 class StartMenuState : public EngineState {
 public:
 	StartMenuState();
@@ -50,6 +73,10 @@ private:
 	bool isSpriteClicked(sf::Sprite& sprite, sf::RenderWindow& window);
 };
 
+/**
+ * @class SettingsMenuState
+ * @brief Basic visual settings menu state.
+ */
 class SettingsMenuState : public EngineState {
 public:
     SettingsMenuState();
@@ -86,12 +113,20 @@ private:
     void updateIcons();
 };
 
+/**
+ * @class PauseMenuState
+ * @brief Overlay state for pausing gameplay.
+ */
 class PauseMenuState : public EngineState {
 public:
 	void tick(GameEngine& engine, float dt) override;
 	void render(GameEngine& engine) override;
 };
 
+/**
+ * @class ClientPlayingState
+ * @brief Non-authoritative network client gameplay state.
+ */
 class ClientPlayingState : public EngineState {
 public:
 	void tick(GameEngine& engine, float dt) override;
@@ -111,6 +146,10 @@ private:
 	bool mHaveState = false;
 };
 
+/**
+ * @class HostPlayingState
+ * @brief Authoritative host gameplay state.
+ */
 class HostPlayingState : public EngineState {
 public:
 	void tick(GameEngine& engine, float dt) override;
@@ -125,6 +164,10 @@ private:
 	Renderer mRenderer;
 };
 
+/**
+ * @class SinglePlayerPlayingState
+ * @brief Local-only gameplay state using the same Match/Renderer pipeline.
+ */
 class SinglePlayerPlayingState : public EngineState {
 public:
 	void tick(GameEngine& engine, float dt) override;

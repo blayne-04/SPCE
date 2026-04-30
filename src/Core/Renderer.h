@@ -1,11 +1,37 @@
 #pragma once
+
+/**
+ * @file Renderer.h
+ * @brief Snapshot-only SFML renderer for the soccer game.
+ *
+ * AI disclosure:
+ * The layered sprite renderer, randomized skin/uniform selection, cow animation,
+ * ball animation, and fallback rendering were written and documented with help
+ * from OpenAI Codex because this rendering pipeline is more complex than a
+ * typical CPTS 122 graphics requirement.
+ *
+ * Prompt used:
+ * "Help me implement an SFML renderer that consumes only GameStatePacket. Draw
+ * animated players from layered Penzilla body/shirt/pants sheets, randomize
+ * realistic skin colors and team uniforms, animate cows and ball sprites, and
+ * keep all gameplay/networking out of Renderer."
+ */
+
 #include <SFML/Graphics.hpp>
 #include "Common/Constants.h"
 #include "Common/Packets.h"
 #include <optional>
 #include <array>
 
-/*Credit: Ryan*/
+/**
+ * @class Renderer
+ * @brief Draws the current authoritative game snapshot.
+ *
+ * Renderer intentionally does not own or modify World, Match, NetworkManager,
+ * or InputHandler. It only displays the snapshot it receives.
+ *
+ * Credit: Ryan contributed the initial player sprite rendering approach.
+ */
 class Renderer {
 public:
     Renderer();

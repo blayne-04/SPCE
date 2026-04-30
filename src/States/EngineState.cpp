@@ -1,4 +1,20 @@
 #include "EngineState.h"
+
+/**
+ * @file EngineState.cpp
+ * @brief Application-state update/render implementation.
+ *
+ * AI disclosure:
+ * The host/client gameplay pipeline that coordinates input, AI, Match,
+ * NetworkManager, and Renderer was generated/revised with help from OpenAI
+ * Codex.
+ *
+ * Prompt used:
+ * "Help me wire EngineState for a host-authoritative SFML soccer game. Host
+ * should poll inputs, fill AI inputs, update Match, send snapshots, and render.
+ * Client should handshake, send input, receive latest state, and render."
+ */
+
 #include "../Core/GameEngine.h"
 #include "../Common/Constants.h"
 #include <iostream>

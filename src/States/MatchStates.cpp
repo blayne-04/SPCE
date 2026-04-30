@@ -1,4 +1,20 @@
 #include "MatchStates.h"
+
+/**
+ * @file MatchStates.cpp
+ * @brief Kickoff, playing, and game-over rule implementation.
+ *
+ * AI disclosure:
+ * The kickoff restrictions, playing-state pipeline, cow/ball ordering, and
+ * timer/game-over transition logic were generated/revised with help from
+ * OpenAI Codex.
+ *
+ * Prompt used:
+ * "Help me implement MatchState update logic for a soccer game. Kickoff should
+ * require an opening pass, Playing should apply movement, possession, cows,
+ * goals and timer, and GameOver should freeze play."
+ */
+
 #include "../Simulation/Match.h"
 #include "../Common/Constants.h"
 #include "../Simulation/PhysicsEngine.h"

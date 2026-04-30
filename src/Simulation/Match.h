@@ -1,5 +1,21 @@
 #pragma once
 
+/**
+ * @file Match.h
+ * @brief Referee/controller for World, MatchState, score, timer, and control routing.
+ *
+ * AI disclosure:
+ * The host-authoritative Match pipeline, snapshot fill, kickoff side tracking,
+ * switch-player routing, and state-machine integration were implemented and
+ * documented with help from OpenAI Codex because this architecture is more
+ * advanced than a basic CPTS 122 inheritance example.
+ *
+ * Prompt used:
+ * "Help me implement an OOP-first Match referee for an SFML soccer game. Match
+ * owns World and MatchState, updates from FrameInput, tracks score/timer,
+ * controls player switching, and fills GameStatePacket by reference."
+ */
+
 #include "World.h"
 #include "../States/MatchStates.h"
 #include "../Common/Packets.h"
@@ -7,10 +23,15 @@
 #include <memory>
 #include <cstdint> // SANTI
 
+/**
+ * @class Match
+ * @brief Owns match rules and delegates state-specific behavior to MatchState.
+ */
 class Match {
 
 public:
 
+	/** @brief Construct a match and enter the initial state. */
 	Match();
 
 	//Match() :mHomeScore(0), mAwayScore(0), mMatchTimerSec(0.0f), mIsOverTime(false), mCurrentState(nullptr)
@@ -22,16 +43,30 @@ public:
 
 	/* Pass data from gameEngine all the way down the pipeline, delegate to state class */
 	// SANTI: dt is required for matchTimerSec.
+	/**
+	 * @brief Advance the match by one simulation tick.
+	 * @param frameData Inputs for all players.
+	 * @param dt Delta time in seconds.
+	 */
 	void update(const FrameInput& frameData, float dt);
 
 	/* Handle state transitions, called by state classes to transition to next state */
+	/**
+	 * @brief Change the current MatchState.
+	 * @param nextState New state object.
+	 */
 	void TransitionTo(std::unique_ptr<MatchState> nextState);
 
 	/* Adjust score for specified team */
+	/** @brief Add one goal to the requested team. */
 	void incrementScore(TEAMS side);
 	void clearScore() { mHomeScore = 0; mAwayScore = 0; }
 
 	// SANTI: output-by-reference snapshot (your preference).
+	/**
+	 * @brief Fill an authoritative GameStatePacket snapshot.
+	 * @param out Snapshot to write.
+	 */
 	void getGameState(GameStatePacket& out) const;
 
 	/* Timer helpers */

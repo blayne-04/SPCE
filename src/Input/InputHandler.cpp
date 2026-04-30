@@ -1,9 +1,20 @@
+/**
+ * @file InputHandler.cpp
+ * @brief Keyboard-to-InputPacket conversion.
+ */
+
 #include "InputHandler.h"
 #include "../Common/Constants.h"
 #include <SFML/Window/Keyboard.hpp>
 #include <cmath>
 
-// Converts keyboard state into a network InputPacket (DOWN state, not edge-triggered).
+/**
+ * @brief Read local keyboard state and return reliable DOWN-state input.
+ *
+ * The client sends button-down booleans every tick instead of one-frame press
+ * edges. The authoritative host can later compare current and previous input
+ * if it needs "pressed this frame" behavior.
+ */
 InputPacket InputHandler::getLocalInput(std::uint8_t playerID)
 {
 	InputPacket out{};

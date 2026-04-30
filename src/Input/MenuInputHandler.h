@@ -1,21 +1,37 @@
 #pragma once
+
+/**
+ * @file MenuInputHandler.h
+ * @brief Helper for menu input events.
+ */
+
 #include <SFML/Graphics.hpp>
 
 // Forward declarations
 class GameEngine;
 class StartMenuState;
 
+/**
+ * @class MenuInputHandler
+ * @brief Routes SFML menu events into menu actions.
+ *
+ * This class is intentionally small and does not own the menu state.
+ */
 class MenuInputHandler {
 public:
-    // Called from StartMenuState::tick() — processes one event at a time
-    void handleEvent(const sf::Event& event, GameEngine& engine, StartMenuState& state);
+	/** @brief Process one menu event. */
+	void handleEvent(const sf::Event& event, GameEngine& engine, StartMenuState& state);
 
 private:
-    // Broken out by input type, mirrors what you already have in EngineState.h
-    void onKeyPressed(const sf::Event::KeyPressed& key, GameEngine& engine, StartMenuState& state);
-    void onMouseMoved(const sf::Event::MouseMoved& mouse, StartMenuState& state);
-    void onMouseClicked(const sf::Event::MouseButtonPressed& mouse, GameEngine& engine, StartMenuState& state);
+	/** @brief Handle keyboard input for menu navigation. */
+	void onKeyPressed(const sf::Event::KeyPressed& key, GameEngine& engine, StartMenuState& state);
 
-    // Utility — checks if a mouse position is inside a button's bounds
-    bool isMouseOver(const sf::Vector2f& mousePos, const sf::Vector2f& buttonPos, const sf::Vector2f& buttonSize);
+	/** @brief Handle mouse movement for hover behavior. */
+	void onMouseMoved(const sf::Event::MouseMoved& mouse, StartMenuState& state);
+
+	/** @brief Handle mouse click selection. */
+	void onMouseClicked(const sf::Event::MouseButtonPressed& mouse, GameEngine& engine, StartMenuState& state);
+
+	/** @brief Check whether a mouse position is inside a rectangular button. */
+	bool isMouseOver(const sf::Vector2f& mousePos, const sf::Vector2f& buttonPos, const sf::Vector2f& buttonSize);
 };

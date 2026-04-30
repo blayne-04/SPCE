@@ -1,5 +1,18 @@
 #pragma once
 
+/**
+ * @file Constants.h
+ * @brief Central tuning table for rendering, networking, physics, AI, cows, and controls.
+ *
+ * AI disclosure:
+ * Some balancing constants and explanatory comments in this file were refined
+ * with help from OpenAI Codex while debugging gameplay feel and networking.
+ *
+ * Prompt used:
+ * "Review this SFML soccer game and suggest clear constants for AI difficulty,
+ * goalkeeper behavior, cow chaos events, networking, and packet-safe gameplay."
+ */
+
 // SANTI: Fixed includes.
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Keyboard.hpp>

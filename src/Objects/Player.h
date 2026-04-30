@@ -1,5 +1,10 @@
 ﻿#pragma once
 
+/**
+ * @file Player.h
+ * @brief Player entity state and movement behavior.
+ */
+
 #include "SFML/Graphics.hpp"
 #include "../Common/Constants.h" // SANTI: Config::PLAYER_SPEED, bounds
 #include <algorithm>             // SANTI: std::clamp
@@ -15,15 +20,25 @@
 // SANTI: Step 4 - added init() and const getters to support World::writeRawState.
 // ============================================================================
 
+/**
+ * @class Player
+ * @brief Represents one home or away player, including goalkeepers.
+ *
+ * Player owns per-player physical state. World decides when movement is applied.
+ */
 class Player : public sf::CircleShape {
 public:
 	// ------------------------------------------------------------------------
 	// CONSTRUCTION
 	// ------------------------------------------------------------------------
+	/** @brief Default constructor; call init() before gameplay use. */
 	Player() = default;
 
 	// SANTI: Step 4 helper to avoid relying on assignment/copy.
 	// Initializes all member variables to deterministic values.
+	/**
+	 * @brief Initialize stable IDs, team, goalkeeper flag, and visual radius.
+	 */
 	void init(int playerID, int teamID, bool isGoalkeeper) {
 		mPlayerID = playerID;
 		mTeam = teamID;
@@ -41,8 +56,11 @@ public:
 	// ------------------------------------------------------------------------
 	// PUBLIC INTERFACE (not yet implemented fully)
 	// ------------------------------------------------------------------------
-	void update(float downTime);   // TODO: apply input and physics.
-	void kickBall();               // TODO: implement kicking logic.
+	/** @brief Legacy placeholder update hook. Movement currently comes from World. */
+	void update(float downTime);
+
+	/** @brief Legacy placeholder kick hook. Ball actions currently live in World/Ball. */
+	void kickBall();
 
 	// ------------------------------------------------------------------------
 	// CONST GETTERS (used by World::writeRawState snapshot)
@@ -57,6 +75,11 @@ public:
 	bool IsLunging() const { return mIsLunging; }
 
 	// SANTI: Apply movement for one tick using DOWN-state input that is already normalized.
+	/**
+	 * @brief Apply one tick of movement from normalized input direction.
+	 * @param moveDir Normalized desired movement direction.
+	 * @param dt Delta time in seconds.
+	 */
 	void applyMoveDirection(const sf::Vector2f& moveDir, float dt) {
 		if (dt <= 0.f) return;
 

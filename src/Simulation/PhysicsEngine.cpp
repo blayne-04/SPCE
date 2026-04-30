@@ -1,5 +1,19 @@
-
 #include "PhysicsEngine.h"
+
+/**
+ * @file PhysicsEngine.cpp
+ * @brief Pure geometry helpers for separation and interception.
+ *
+ * AI disclosure:
+ * The player separation and pass/shot interception corridor math were
+ * generated/revised with help from OpenAI Codex.
+ *
+ * Prompt used:
+ * "Help me implement geometry helpers for my SFML soccer game. Resolve player
+ * overlap and find the first defender inside a pass/shot segment corridor using
+ * player ID ranges instead of Team objects."
+ */
+
 #include "../Common/Constants.h"   // Config::PLAYER_MIN_X etc
 #include <algorithm>               // std::clamp
 #include <cmath>                   // std::sqrt

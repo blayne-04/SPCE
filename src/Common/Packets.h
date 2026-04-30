@@ -1,5 +1,20 @@
 #pragma once
 
+/**
+ * @file Packets.h
+ * @brief Wire contract for the host-authoritative soccer game.
+ *
+ * AI disclosure:
+ * The packet structure and field-by-field SFML serialization operators were
+ * designed and documented with help from OpenAI Codex because this networking
+ * contract is more advanced than typical CPTS 122 starter code.
+ *
+ * Prompt used:
+ * "Help me design a host-authoritative UDP packet contract for an SFML soccer
+ * game. Use GameState snapshots, InputPacket button-down state, no raw struct
+ * memcpy, and sf::Packet serialization operators."
+ */
+
 #include <SFML/Graphics.hpp>
 #include <SFML/Network.hpp>          // SANTI: added for sf::Packet
 #include <array>
@@ -22,6 +37,12 @@
 // - Host computes "pressed this frame" by comparing with last tick's input.
 // ============================================================================
 
+/**
+ * @brief Type tag at the front of every UDP packet.
+ *
+ * This prevents the receiver from accidentally parsing an input packet as a
+ * game-state packet or vice versa.
+ */
 enum class NetMsg : std::uint8_t {
 	INPUT = 1,        // Client -> Host payload: InputPacket
 	STATE = 2,        // Host   -> Client payload: GameStatePacket
@@ -33,6 +54,12 @@ enum class NetMsg : std::uint8_t {
 // UPLINK: Client -> Host
 // ============================================================================
 
+/**
+ * @brief Client-to-host input for one controlled player on one tick.
+ *
+ * The booleans are button DOWN state, not "pressed this frame". The host
+ * computes press edges by comparing this tick against the previous tick.
+ */
 struct InputPacket {
 	std::uint32_t inputSequence = 0;
 
@@ -47,6 +74,9 @@ struct InputPacket {
 	bool lungeDown = false;
 };
 
+/**
+ * @brief Host-side collection of every player's input for one simulation tick.
+ */
 struct FrameInput {
 	std::array<InputPacket, Config::kNumPlayers> inputs{};
 };
@@ -55,6 +85,9 @@ struct FrameInput {
 // DOWNLINK: Host -> Client
 // ============================================================================
 
+/**
+ * @brief Snapshot of one player for rendering and client-side display.
+ */
 struct PlayerState {
 	sf::Vector2f position{ 0.f, 0.f };
 	sf::Vector2f velocity{ 0.f, 0.f };
@@ -67,12 +100,23 @@ struct PlayerState {
 // SANTI: COWS 29/04/26
 // Cow snapshot state. Cows are authoritative obstacles simulated on the host.
 // Clients only render these states; they never simulate cow movement.
+/**
+ * @brief Snapshot of one cow obstacle.
+ *
+ * Cows are simulated by the host. Clients only render this packet state.
+ */
 struct CowState {
 	bool active = false;
 	sf::Vector2f position{ 0.f, 0.f };
 	sf::Vector2f velocity{ 0.f, 0.f };
 };
 
+/**
+ * @brief Host-to-client authoritative snapshot of the whole match.
+ *
+ * Renderer, networking, and client prediction avoidance all depend on this one
+ * packet being stable and serialized field by field.
+ */
 struct GameStatePacket {
 	std::uint32_t frameNumber = 0;
 

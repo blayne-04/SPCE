@@ -1,5 +1,19 @@
 #include "Ball.h"
 
+/**
+ * @file Ball.cpp
+ * @brief Ball physics, ownership, and guided travel implementation.
+ *
+ * AI disclosure:
+ * The guided travel logic for guaranteed passes/shots was generated/revised
+ * with help from OpenAI Codex.
+ *
+ * Prompt used:
+ * "Help me implement a Ball class that can move by velocity or by guided travel
+ * for guaranteed passes and shots. Keep Ball physics-only and let World choose
+ * targets and final owners."
+ */
+
 #include "../Common/Constants.h" // Config::...
 #include <algorithm>             // std::clamp
 #include <cmath>                 // std::sqrt

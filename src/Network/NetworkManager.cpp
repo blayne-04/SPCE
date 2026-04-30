@@ -1,5 +1,19 @@
 #include "NetworkManager.h"
 
+/**
+ * @file NetworkManager.cpp
+ * @brief Implementation of the UDP host/client mailroom.
+ *
+ * AI disclosure:
+ * The one-socket UDP message dispatch, handshake, endpoint learning, and
+ * latest-state drain loop were generated/revised with help from OpenAI Codex.
+ *
+ * Prompt used:
+ * "Help me implement a minimal SFML UDP NetworkManager for one host and one
+ * client. Use type-tagged packets, non-blocking sockets, repeated join requests,
+ * output-by-reference queues, and latest snapshot receive behavior."
+ */
+
 void NetworkManager::startHost(uint16 localPort)
 {
 	mSocket.unbind();
