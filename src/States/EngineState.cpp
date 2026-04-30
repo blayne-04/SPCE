@@ -134,7 +134,6 @@ SettingsMenuState::SettingsMenuState()
 		mSettingWordsTex.getSize().y / 2.0f });
 	mSettingWords->setPosition({ Config::WINDOW_WIDTH / 1.34f, Config::WINDOW_HEIGHT / 4.0f });
 	mSettingWords->setScale({ 0.5f, 0.5f });
-
 	mExitBtn.emplace(mExitTex);
 	mExitBtn->setPosition({ 500.f, 355.f });
 	mExitBtn->setScale({ 0.28f, 0.28f });
