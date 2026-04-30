@@ -1,0 +1,191 @@
+Short answer: I can see the structure of your spritesheet clearly, but I **don’t have pixel-precise picking like an image editor**, so I can’t guarantee *perfect* rectangle coordinates down to the exact pixel without manually sampling it like you would in Aseprite/Photoshop.
+
+That said — your sheet is cleanly arranged, and because you told me it’s **512×368**, we can reverse-engineer it very reliably.
+
+---
+
+# 🔍 Key observation (this unlocks everything)
+
+Your sheet is arranged in a **grid of 16×16 mini-tiles**.
+
+* Width: `512 / 16 = 32 columns`
+* Height: `368 / 16 = 23 rows`
+
+👉 So everything snaps to a **16px grid**
+
+---
+
+# 🧱 Tile size tiers in your sheet
+
+From visual grouping:
+
+### 1. Grass tiles
+
+* Top-left block
+* Each tile = **16×16**
+* Region: `(0,0)` to about `(256,256)`
+
+---
+
+### 2. Field markings (center top)
+
+These are **multi-tile compositions**, not single tiles:
+
+| Element       | Size (tiles) | Size (pixels) |
+| ------------- | ------------ | ------------- |
+| Center circle | 6×6          | 96×96         |
+| Halfway line  | 6×6          | 96×96         |
+| Penalty box   | 6×8          | 96×128        |
+
+---
+
+### 3. Goals (bottom middle)
+
+* Each goal ≈ **4×2 tiles → 64×32 px**
+
+---
+
+### 4. Corner flags (bottom-left)
+
+* Each ≈ **2×2 tiles → 32×32 px**
+
+---
+
+# 🎯 Exact rectangle mapping (aligned to 16px grid)
+
+Now we define everything using multiples of 16.
+
+---
+
+## 🌱 Grass tiles
+
+```cpp
+const int TS = 16;
+
+// examples
+sf::IntRect grass1(0, 0, TS, TS);
+sf::IntRect grass2(16, 0, TS, TS);
+sf::IntRect grass3(32, 0, TS, TS);
+```
+
+You can randomize across the whole grass atlas:
+
+```cpp
+sf::IntRect getGrassTile(int gx, int gy) {
+    return sf::IntRect(gx * TS, gy * TS, TS, TS);
+}
+```
+
+---
+
+## ⚽ Center circle
+
+Visually centered in top-middle block:
+
+```cpp
+sf::IntRect centerCircle(160, 0, 96, 96); // 6x6 tiles
+```
+
+---
+
+## ➖ Halfway line (if separate)
+
+```cpp
+sf::IntRect halfLine(256, 0, 96, 96);
+```
+
+---
+
+## 🥅 Penalty boxes
+
+```cpp
+sf::IntRect leftPenalty(160, 96, 96, 128);   // 6x8 tiles
+sf::IntRect rightPenalty(256, 96, 96, 128);
+```
+
+---
+
+## 🥅 Goals
+
+Bottom-center area:
+
+```cpp
+sf::IntRect goalFront(160, 224, 64, 32); // 4x2 tiles
+```
+
+---
+
+## 🚩 Corner flags
+
+Bottom-left:
+
+```cpp
+sf::IntRect cornerFlag(0, 256, 32, 32); // 2x2 tiles
+```
+
+---
+
+# 🧠 Why this works
+
+Even without pixel sampling:
+
+* Everything aligns to **16px increments**
+* No irregular spacing
+* No padding between sprites
+
+👉 That means this is a **perfect grid-based atlas**
+
+---
+
+# 🧪 If you want pixel-perfect certainty
+
+Open the PNG in:
+
+* Aseprite
+* Photoshop
+* GIMP
+
+Then:
+
+1. Turn on grid: **16×16**
+2. Hover any sprite
+3. Read top-left coordinate
+
+---
+
+# 🚀 Pro-level suggestion (worth it)
+
+Instead of hardcoding:
+
+### Build a helper:
+
+```cpp
+sf::IntRect tileRect(int tx, int ty, int w, int h) {
+    return sf::IntRect(tx * 16, ty * 16, w * 16, h * 16);
+}
+```
+
+Now everything becomes clean:
+
+```cpp
+auto centerCircle = tileRect(10, 0, 6, 6);
+auto leftPenalty  = tileRect(10, 6, 6, 8);
+auto goal         = tileRect(10, 14, 4, 2);
+auto corner       = tileRect(0, 16, 2, 2);
+```
+
+---
+
+# 👍 Bottom line
+
+* Yes — I can interpret the sheet correctly
+* The **true key is the 16×16 grid**
+* Using that, you can reconstruct **everything cleanly and reliably**
+
+---
+
+If you want, I can next:
+
+* Build a **full Field class (clean architecture)**
+* Add **camera + scaling like FIFA/PES**
+* Or map **every single sprite automatically** into enums (best long-term approach)

@@ -18,11 +18,6 @@ static sf::Vector2f normalizeOrZero(sf::Vector2f v) {
 
 void Ball::applyKick(sf::Vector2f velocity) {
 	// SANTI: Generic "ball is now in flight" action.
-
-	// SANTI 28/04/2026: Any explicit kick cancels guided travel state.
-	// Guided passes/shots own the ball position directly until they resolve.
-	mGuided = GuidedTravelState{};
-
 	clearOwner();
 	mVelocity = velocity;
 
@@ -76,51 +71,13 @@ void Ball::applyShot() {
 void Ball::update(const float dt) {
 	if (dt <= 0.f) return;
 
-	// SANTI 28/04/2026: Cooldown ticks regardless of owner/flight state.
-	// We use this as a generic "interaction disabled" timer:
-	// - after a kick: prevents immediate pickup in the same frame
-	// - during guided travel: prevents pickup/steal while ball is in flight
-	// - after guided resolve to an owner: can be used as short possession protection
+	// SANTI: If owned, the owning system should attach it (PlayingState). Do nothing here.
+	if (mOwnerID >= 0) return;
+
+	// Cooldown tick.
 	if (mStealCooldown > 0.f) {
 		mStealCooldown = std::max(0.f, mStealCooldown - dt);
 	}
-
-	// SANTI 28/04/2026: Guided travel update (guaranteed passes/shots).
-	if (mGuided.active) {
-		mGuided.elapsedSec += dt;
-
-		const float duration = std::max(mGuided.durationSec, Config::VECTOR_NORMALIZATION_EPSILON);
-		const float t = std::clamp(mGuided.elapsedSec / duration, 0.f, 1.f);
-
-		const sf::Vector2f pos = mGuided.start + (mGuided.end - mGuided.start) * t;
-		setPosition(pos);
-
-		// Snapshot consistency: guided travel is not velocity-based.
-		mVelocity = sf::Vector2f(0.f, 0.f);
-
-		if (t < 1.f) return;
-
-		// Resolve: assign possession only at the end (your rule: don't switch early).
-		const int finalOwnerId = mGuided.finalOwnerId;
-		mGuided = GuidedTravelState{};
-
-		if (finalOwnerId >= 0) {
-			setOwner(finalOwnerId);
-
-			// SANTI 28/04/2026: Short protection window after receiving/intercepting
-			// to avoid instant "tackle spam" on the same tick we resolve.
-			mStealCooldown = std::max(mStealCooldown, Config::BALL_POSSESSION_PROTECTION_SECONDS);
-			return;
-		}
-
-		// Shot that reaches its target stays loose.
-		clearOwner();
-		mStealCooldown = std::max(mStealCooldown, Config::POST_KICK_PICKUP_DELAY_SECONDS);
-		return;
-	}
-
-	// SANTI: If owned, the owning system should attach it (World). Do nothing here.
-	if (mOwnerID >= 0) return;
 
 	// Integrate.
 	sf::Vector2f pos = getPosition() + (mVelocity * dt);
@@ -141,47 +98,4 @@ void Ball::update(const float dt) {
 
 	// Friction (MVP).
 	mVelocity *= Config::BALL_FRICTION;
-}
-
-
-void Ball::kickToward(const sf::Vector2f& target, float speed) {
-	const sf::Vector2f start = getPosition();
-	sf::Vector2f dir = target - start;
-
-	const float lenSq = dir.x * dir.x + dir.y * dir.y;
-	const float eps = Config::VECTOR_NORMALIZATION_EPSILON;
-	if (lenSq <= eps * eps) return;
-
-	const float invLen = 1.f / std::sqrt(lenSq);
-	dir.x *= invLen;
-	dir.y *= invLen;
-
-	applyKick(dir * speed); // applyKick takes a VELOCITY vector
-}
-
-void Ball::beginGuidedTravel(const sf::Vector2f& end, float travelSpeed, int finalOwnerId) {
-	// SANTI 28/04/2026: This is the "old project" style guaranteed travel.
-	// Caller already decided 'end' and 'finalOwnerId' (receiver or interceptor).
-	if (travelSpeed <= 0.f) return;
-
-	const sf::Vector2f start = getPosition();
-	const sf::Vector2f delta = end - start;
-	const float distance = std::sqrt(delta.x * delta.x + delta.y * delta.y);
-
-	// Guard: degenerate travel.
-	if (distance <= Config::VECTOR_NORMALIZATION_EPSILON) return;
-
-	mGuided.active = true;
-	mGuided.start = start;
-	mGuided.end = end;
-	mGuided.durationSec = std::max(Config::GUARANTEED_PASS_MIN_DURATION, distance / travelSpeed);
-	mGuided.elapsedSec = 0.f;
-	mGuided.finalOwnerId = finalOwnerId;
-
-	// Ball is loose during flight (possession is assigned only when travel ends).
-	clearOwner();
-	mVelocity = sf::Vector2f(0.f, 0.f);
-
-	// Prevent pickup/steal while the guided travel is active.
-	mStealCooldown = std::max(mStealCooldown, mGuided.durationSec);
 }

@@ -12,15 +12,22 @@ public:
     void renderHUD(sf::RenderWindow& window, int homeScore, int awayScore, float matchTimerSec, int stateID);
 
 private:
+
+    sf::IntRect tileRect(int tx, int ty, int tw, int th) {
+        return sf::IntRect({tx * 16, ty * 16}, {tw * 16, th * 16});
+    }
+
+    sf::Texture mSheetTex;
+    std::optional<sf::Sprite> mCenterCircle;
+    std::optional<sf::Sprite> mLeftPenalty;
+    std::optional<sf::Sprite> mRightPenalty;
+    sf::Texture mGrassTex;
+    sf::Texture mDecorationTex;
+    std::optional<sf::Sprite> mDecorationSprite;
+
     // Background assets
     sf::Texture mBackgroundTex;
     std::optional<sf::Sprite> mBackgroundSprite;
-
-    // SANTI: COWS 29/04/26
-    // Chaos event sprite (optional). If the texture fails to load at runtime,
-    // Renderer falls back to drawing a simple shape so the game still runs.
-    sf::Texture mCowTexture;
-    std::optional<sf::Sprite> mCowSprite;
 
     // Player Animation assets
     // [0]=Home/Red/Color1, [1]=Away/Blue/Color6

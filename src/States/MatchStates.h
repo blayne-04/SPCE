@@ -53,11 +53,6 @@ public:
 	void update(Match& match, const FrameInput& frameData, float dt) override;
 	void onEnter(Match& match) override;
 	void onExit(Match& match) override;
-
-private:
-	// SANTI 28/04/2026: Kickoff is not complete until the opening pass finishes.
-	// This mirrors real football: play begins after the ball is played to a teammate.
-	bool mKickoffPassStarted = false;
 };
 
 /* ========================================= */

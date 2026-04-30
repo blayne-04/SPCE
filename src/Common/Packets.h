@@ -64,23 +64,10 @@ struct PlayerState {
 	bool isLunging = false;
 };
 
-// SANTI: COWS 29/04/26
-// Cow snapshot state. Cows are authoritative obstacles simulated on the host.
-// Clients only render these states; they never simulate cow movement.
-struct CowState {
-	bool active = false;
-	sf::Vector2f position{ 0.f, 0.f };
-	sf::Vector2f velocity{ 0.f, 0.f };
-};
-
 struct GameStatePacket {
 	std::uint32_t frameNumber = 0;
 
 	std::array<PlayerState, Config::kNumPlayers> players{};
-
-	// SANTI: COWS 29/04/26
-	// Fixed-size cow array keeps networking deterministic and bandwidth-bounded.
-	std::array<CowState, Config::kMaxCows> cows{};
 
 	sf::Vector2f ballPosition{ 0.f, 0.f };
 	sf::Vector2f ballVelocity{ 0.f, 0.f };
@@ -162,23 +149,10 @@ inline sf::Packet& operator>>(sf::Packet& packet, PlayerState& playerState) {
 		>> playerState.isLunging;
 }
 
-// SANTI: COWS 29/04/26
-inline sf::Packet& operator<<(sf::Packet& packet, const CowState& cowState) {
-	return packet << cowState.active
-		<< cowState.position
-		<< cowState.velocity;
-}
-inline sf::Packet& operator>>(sf::Packet& packet, CowState& cowState) {
-	return packet >> cowState.active
-		>> cowState.position
-		>> cowState.velocity;
-}
-
 /* Game state output */
 inline sf::Packet& operator<<(sf::Packet& packet, const GameStatePacket& gameStatePacket) {
 	packet << gameStatePacket.frameNumber;
 	for (const auto& playerState : gameStatePacket.players) packet << playerState;
-	for (const auto& cowState : gameStatePacket.cows) packet << cowState; // SANTI: COWS 29/04/26
 	packet << gameStatePacket.ballPosition
 		<< gameStatePacket.ballVelocity
 		<< gameStatePacket.ballOwnerPlayerId
@@ -196,7 +170,6 @@ inline sf::Packet& operator<<(sf::Packet& packet, const GameStatePacket& gameSta
 inline sf::Packet& operator>>(sf::Packet& packet, GameStatePacket& gameStatePacket) {
 	packet >> gameStatePacket.frameNumber;
 	for (auto& playerState : gameStatePacket.players) packet >> playerState;
-	for (auto& cowState : gameStatePacket.cows) packet >> cowState; // SANTI: COWS 29/04/26
 	packet >> gameStatePacket.ballPosition
 		>> gameStatePacket.ballVelocity
 		>> gameStatePacket.ballOwnerPlayerId
