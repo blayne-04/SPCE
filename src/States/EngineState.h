@@ -3,7 +3,7 @@
 #include <SFML/Graphics.hpp>
 #include "../Input/InputHandler.h"
 #include "../Core/Renderer.h"
-#include "../Input/AiController.h"
+#include "../Input/AIController.h"
 #include <stdint.h>
 #include <stdio.h>
 
