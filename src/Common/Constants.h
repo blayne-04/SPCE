@@ -153,6 +153,52 @@ namespace Config {
 	constexpr float STEALER_RETRY_COOLDOWN_SECONDS = 0.35f;
 
 	// ----------------------------------------------------------------------------
+	// CHAOS EVENT: COW INVASION (SANTI: COWS 29/04/26)
+	// ----------------------------------------------------------------------------
+	// These constants control the "Copa Peru cows" chaos event.
+	// Design constraints for networking safety:
+	// - Max cow count is FIXED (no vectors in the packet).
+	// - Host simulates cows, clients render from GameStatePacket only.
+	inline constexpr std::size_t kMaxCows = 6;
+
+	// Visual / collision radius (world units, same coordinate space as players/ball).
+	constexpr float COW_RADIUS = 16.f;
+
+	// Cow movement behavior (grazing is intentionally slow to feel like an obstacle).
+	constexpr float COW_SPEED_ENTERING = 95.f;
+	constexpr float COW_SPEED_GRAZING = 55.f;
+
+	// Spawn scheduling in PlayingState only.
+	// SANTI: COWS 30/04/26
+	// Spawns happen over time until kMaxCows is reached. Cows do NOT despawn on goals.
+	constexpr float COW_SPAWN_MIN_DELAY_SECONDS = 20.f;
+	constexpr float COW_SPAWN_MAX_DELAY_SECONDS = 38.f;
+
+	// Wander behavior: cows alternate between "move" and "pause".
+	// SANTI: COWS 30/04/26
+	// This produces the "scramble, stand still, scramble, stand still" feel.
+	constexpr float COW_WANDER_MOVE_MIN_SECONDS = 0.85f;
+	constexpr float COW_WANDER_MOVE_MAX_SECONDS = 2.10f;
+	constexpr float COW_WANDER_PAUSE_MIN_SECONDS = 0.65f;
+	constexpr float COW_WANDER_PAUSE_MAX_SECONDS = 1.75f;
+
+	// Avoid edges so cows distribute across the field instead of clumping on borders.
+	// This is in addition to COW_RADIUS.
+	constexpr float COW_EDGE_CLEARANCE = 28.f;
+
+	// Extra margin around the goal mouth to ensure cows do not look like they are
+	// "inside the goal" visually, even if sprites/lines are thicker than GOAL_WIDTH.
+	constexpr float COW_GOAL_MOUTH_CLEARANCE = 24.f;
+	constexpr float COW_TARGET_REACHED_EPSILON = 10.f;
+
+	// Ball collision response when a cow blocks the ball.
+	constexpr float COW_BALL_BOUNCE_DAMPING = 0.68f;
+	constexpr float COW_BALL_MIN_BOUNCE_SPEED = 140.f;
+
+	// Asset path (runtime-only; safe if missing, renderer will fall back to shapes).
+	constexpr const char* COW_TEXTURE_PATH = "assets/textures/cow.png";
+
+	// ----------------------------------------------------------------------------
 	// PASSING & SHOOTING
 	// ----------------------------------------------------------------------------
 

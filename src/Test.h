@@ -11,6 +11,48 @@ namespace Test
 {
 	void testEngineStateMachine();
 	void testMatchStateMachine();
+
+	// SANTI 30/04/26: Helper for the visual EngineState test (no lambdas).
+	// Runs a timed loop that updates + renders a VisualTestState in its own window.
+	inline void runEngineStateVisualTest(
+		sf::RenderWindow& testWindow,
+		sf::Clock& clock,
+		const std::string& testName,
+		const std::string& description,
+		sf::Color color,
+		float durationSeconds)
+	{
+		std::cout << "Test: " << testName << " - " << description << std::endl;
+
+		VisualTestState testState(testName, description, color);
+
+		float elapsed = 0.0f;
+		clock.restart();
+
+		while (testWindow.isOpen() && elapsed < durationSeconds) {
+			const float dt = clock.restart().asSeconds();
+			elapsed += dt;
+
+			// Process window events
+			while (const auto event = testWindow.pollEvent()) {
+				if (event->is<sf::Event::Closed>()) {
+					testWindow.close();
+					return;
+				}
+			}
+
+			// Update and render
+			GameEngine dummyEngine; // Dummy engine for update call
+			testState.update(dummyEngine, dt);
+			testWindow.clear();
+			testState.render(testWindow);
+			testWindow.display();
+		}
+
+		std::cout << "  -> Completed (dt working: "
+			<< (testState.elapsedTime > 0.0f ? "YES" : "NO")
+			<< ", Updates: " << testState.updateCount << ")\n" << std::endl;
+	}
 }
 
 // Visual test state that displays information
@@ -61,47 +103,16 @@ inline void Test::testEngineStateMachine() {
     testWindow.setFramerateLimit(60);
     sf::Clock clock;
 
-    auto runVisualTest = [&](const std::string& testName, const std::string& description, 
-                             sf::Color color, float durationSeconds) {
-        std::cout << "Test: " << testName << " - " << description << std::endl;
-        
-        VisualTestState testState(testName, description, color);
-        
-        float elapsed = 0.0f;
-        clock.restart();
-        
-        while (testWindow.isOpen() && elapsed < durationSeconds) {
-            float dt = clock.restart().asSeconds();
-            elapsed += dt;
-            
-            // Process window events
-            while (const auto event = testWindow.pollEvent()) {
-                if (event->is<sf::Event::Closed>()) {
-                    testWindow.close();
-                    return;
-                }
-            }
-            
-            // Update and render
-            GameEngine dummyEngine; // Dummy engine for update call
-            testState.update(dummyEngine, dt);
-            testWindow.clear();
-            testState.render(testWindow);
-            testWindow.display();
-        }
-        
-        std::cout << "  -> Completed (dt working: " 
-                  << (testState.elapsedTime > 0.0f ? "YES" : "NO") 
-                  << ", Updates: " << testState.updateCount << ")\n" << std::endl;
-    };
-
     // Test 1: Single State (Blue)
-    runVisualTest(
+    runEngineStateVisualTest(
+        testWindow,
+        clock,
         "Test 1: Single State", 
         "One state pushed to stack", 
         sf::Color::Blue, 
         2.0f
     );
+    if (!testWindow.isOpen()) return;
 
     // Test 2: Push Overlay (Red -> Green)
     {
