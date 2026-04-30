@@ -2,6 +2,7 @@
 #include "../Core/GameEngine.h"
 #include "../Common/Constants.h"
 #include <iostream>
+#include <memory>
 #include <optional> // SANTI 29/04/26: for resolving Config::DEFAULT_HOST_ADDRESS
 
 namespace {
@@ -248,10 +249,71 @@ void SettingsMenuState::updateIcons()
 /**************************
 * PAUSE MENU STATE
 **************************/
+PauseMenuState::PauseMenuState()
+	: mResumeText(mFont),
+	mQuitText(mFont)
+{
+	mPanelTex.loadFromFile("assets/UI/soccer_ui/panel.png");
+	mFont.openFromFile("assets/fonts/arial.ttf");
+
+	mPanel.emplace(mPanelTex);
+	mPanel->setOrigin({
+		mPanelTex.getSize().x / 2.f,
+		mPanelTex.getSize().y / 2.f
+		});
+	mPanel->setPosition({
+		Config::WINDOW_WIDTH / 2.f,
+		Config::WINDOW_HEIGHT / 2.f
+		});
+	mPanel->setScale({ 0.8f, 0.8f });
+
+	mResumeBtn.setSize({ 220.f, 60.f });
+	mResumeBtn.setOrigin({ 110.f, 30.f });
+	mResumeBtn.setPosition({ Config::WINDOW_WIDTH / 2.f, Config::WINDOW_HEIGHT / 2.f - 40.f });
+	mResumeBtn.setFillColor(sf::Color(40, 140, 60));
+
+	mQuitBtn.setSize({ 220.f, 60.f });
+	mQuitBtn.setOrigin({ 110.f, 30.f });
+	mQuitBtn.setPosition({ Config::WINDOW_WIDTH / 2.f, Config::WINDOW_HEIGHT / 2.f + 50.f });
+	mQuitBtn.setFillColor(sf::Color(160, 50, 50));
+
+	mResumeText.setString("RESUME");
+	mResumeText.setCharacterSize(28);
+	mResumeText.setFillColor(sf::Color::White);
+	mResumeText.setPosition({ Config::WINDOW_WIDTH / 2.f - 55.f, Config::WINDOW_HEIGHT / 2.f - 58.f });
+
+	mQuitText.setString("QUIT");
+	mQuitText.setCharacterSize(28);
+	mQuitText.setFillColor(sf::Color::White);
+	mQuitText.setPosition({ Config::WINDOW_WIDTH / 2.f - 35.f, Config::WINDOW_HEIGHT / 2.f + 32.f });
+}
 
 void PauseMenuState::tick(GameEngine& engine, float dt)
 {
 	/* TODO: Implement input handling for pause menu */
+	auto& window = engine.getWindow();
+
+	bool mouseDown = sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
+	bool justClicked = mouseDown && !mMouseWasDown;
+
+	if (justClicked) {
+		if (isMouseOver(mResumeBtn.getGlobalBounds(), window)) {
+			engine.popState();
+			return;
+		}
+
+		if (isMouseOver(mQuitBtn.getGlobalBounds(), window)) {
+			engine.transitionTo(std::make_unique<StartMenuState>());
+			return;
+		}
+	}
+
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
+		engine.popState();
+		return;
+	}
+
+	mMouseWasDown = mouseDown;
 }
 
 void PauseMenuState::render(GameEngine& engine)
@@ -263,6 +325,19 @@ void PauseMenuState::render(GameEngine& engine)
 	overlay.setFillColor(sf::Color(0, 0, 0, 180));  /* Black with 180 alpha */
 	window.draw(overlay);
 	/* TODO: Draw pause menu options */
+	if (mPanel) window.draw(*mPanel);
+
+	window.draw(mResumeBtn);
+	window.draw(mQuitBtn);
+	window.draw(mResumeText);
+	window.draw(mQuitText);
+
+}
+bool PauseMenuState::isMouseOver(const sf::FloatRect& bounds, sf::RenderWindow& window)
+{
+	sf::Vector2i mousePixel = sf::Mouse::getPosition(window);
+	sf::Vector2f mouseWorld = window.mapPixelToCoords(mousePixel);
+	return bounds.contains(mouseWorld);
 }
 
 /**************************

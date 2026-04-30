@@ -88,9 +88,23 @@ private:
 
 class PauseMenuState : public EngineState {
 public:
+	PauseMenuState();
 	void tick(GameEngine& engine, float dt) override;
 	void render(GameEngine& engine) override;
+private:
+	sf::Texture mPanelTex;
+	std::optional<sf::Sprite> mPanel;
+
+	sf::Font mFont;
+	sf::RectangleShape mResumeBtn;
+	sf::RectangleShape mQuitBtn;
+	sf::Text mResumeText;
+	sf::Text mQuitText;
+
+	bool mMouseWasDown = false;
+	bool isMouseOver(const sf::FloatRect& bounds, sf::RenderWindow& window);
 };
+
 
 class ClientPlayingState : public EngineState {
 public:
