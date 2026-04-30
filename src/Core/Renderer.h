@@ -22,6 +22,16 @@ private:
     sf::Texture mCowTexture;
     std::optional<sf::Sprite> mCowSprite;
 
+    // SANTI: COWS 30/04/26
+    // Idle cow sheet: used only when a cow is paused/not moving.
+    sf::Texture mCowIdleTexture;
+    std::optional<sf::Sprite> mCowIdleSprite;
+
+    // SANTI 30/04/26
+    // Ball icon sheet: used to animate the ball while it is moving.
+    sf::Texture mBallTexture;
+    std::optional<sf::Sprite> mBallSprite;
+
     // Player Animation assets
     // [0]=Home/Red/Color1, [1]=Away/Blue/Color6
     // [0]=Down, [1]=Up, [2]=Left, [3]=Right
