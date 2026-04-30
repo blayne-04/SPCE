@@ -155,12 +155,20 @@ void PlayingState::update(Match& match, const FrameInput& frameData, float dt) {
 
 	World& world = match.getWorld(); // SANTI: local ref keeps code flat (never-nest).
 
+	// SANTI: COWS 29/04/26
+	// Update cow event before moving players so collisions use current cow positions.
+	world.updateCows(dt);
+
 	// 1) Apply authoritative per-player movement for this frame.
 	// Movement is a simulation mechanic, so World owns it.
 	world.applyFrameMovement(frameData, dt);
 
 	// SANTI: Resolve overlaps after movement so players don't stack.
 	PhysicsEngine::resolvePlayerSeparation(world, dt);
+
+	// SANTI: COWS 29/04/26
+	// Cows are solid obstacles: push players out of cows after movement/separation.
+	world.resolveCowPlayerCollisions(dt);
 
 	// SANTI 28/04/2026: Prevent any players from drifting into the goal mouth.
 	// This is enforced regardless of possession for football-sense.
@@ -187,7 +195,13 @@ void PlayingState::update(Match& match, const FrameInput& frameData, float dt) {
 	//
 	// Fix: always call ball.update(dt) once per tick. When the ball is owned,
 	// Ball::update only ticks cooldown and returns without moving the ball.
+	const sf::Vector2f ballPrevPos = ball.getPosition(); // SANTI: COWS 29/04/26
 	ball.update(dt);
+
+	// SANTI: COWS 29/04/26
+	// Cows can block the ball even during guided pass/shot travel. This may cancel
+	// guided flight and convert the ball back to velocity-based motion.
+	world.resolveCowBallCollisions(dt, ballPrevPos);
 
 	int ownerId = ball.getOwner();
 

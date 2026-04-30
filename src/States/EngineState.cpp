@@ -4,6 +4,38 @@
 #include <iostream>
 #include <optional> // SANTI 29/04/26: for resolving Config::DEFAULT_HOST_ADDRESS
 
+namespace {
+	// SANTI 30/04/26: Helper to slice one button cell out of the menu sprite sheet.
+	// This replaces the old lambda so the constructor stays easy to read.
+	static sf::IntRect makeMenuButtonSheetRect(int index, int cellWidth, int cellHeight, int transparentGap) {
+		const int x = index * (cellWidth + transparentGap);
+		return sf::IntRect({ x, 0 }, { cellWidth, cellHeight });
+	}
+
+	// SANTI 30/04/26: SFML marks Texture::loadFromFile as [[nodiscard]].
+	// For menu UI textures, we load "best effort" and keep going if assets are missing.
+	static void loadTextureBestEffort(sf::Texture& texture, const char* path) {
+		const bool loaded = texture.loadFromFile(path);
+		(void)loaded;
+	}
+
+	// SANTI 30/04/26: Helper to apply standard origin/scale/position to an optional button sprite.
+	static void setupMenuButtonSprite(
+		std::optional<sf::Sprite>& optionalSprite,
+		float centerX,
+		float centerY,
+		float cellWidth,
+		float cellHeight,
+		float scale)
+	{
+		if (!optionalSprite) return;
+
+		optionalSprite->setOrigin({ cellWidth * 0.5f, cellHeight * 0.5f });
+		optionalSprite->setScale({ scale, scale });
+		optionalSprite->setPosition({ centerX, centerY });
+	}
+}
+
 /**************************
 * START MENU STATE
 **************************/
@@ -24,35 +56,23 @@ StartMenuState::StartMenuState() {
 		const int cellH = 90;  // Height of one button cell
 		const int gap = 2;     // Transparent gap between buttons on sheet
 
-		// Slicing logic: (Index * (Width + Gap))
-		auto getRect = [&](int index) {
-			return sf::IntRect({ index * (cellW + gap), 0 }, { cellW, cellH });
-			};
-
 		// Construct using SFML 3.1's mandatory-texture constructor
-		mBtnPlay.emplace(mButtonSheet, getRect(0));     // Index 0
-		mBtnHost.emplace(mButtonSheet, getRect(1));     // Index 1
-		mBtnJoin.emplace(mButtonSheet, getRect(2));     // Index 2
-		mBtnSettings.emplace(mButtonSheet, getRect(3)); // Index 3
+		mBtnPlay.emplace(mButtonSheet, makeMenuButtonSheetRect(0, cellW, cellH, gap));     // Index 0
+		mBtnHost.emplace(mButtonSheet, makeMenuButtonSheetRect(1, cellW, cellH, gap));     // Index 1
+		mBtnJoin.emplace(mButtonSheet, makeMenuButtonSheetRect(2, cellW, cellH, gap));     // Index 2
+		mBtnSettings.emplace(mButtonSheet, makeMenuButtonSheetRect(3, cellW, cellH, gap)); // Index 3
 
 		// 3. Vertical Stack Layout (Centered between player sprites)
 		float centerX = Config::WINDOW_WIDTH / 2.0f;
 		float startY = 300.0f;   // Moves the whole group up/down
 		float vSpacing = 80.0f;  // Fixed gap between button centers
-
-		auto setupBtn = [&](std::optional<sf::Sprite>& opt, float yPos) {
-			if (opt) {
-				opt->setOrigin({ cellW / 2.0f, cellH / 2.0f });
-				opt->setScale({ 0.8f, 0.8f }); // Adjust if they are too big for the gap
-				opt->setPosition({ centerX, yPos });
-			}
-			};
+		const float buttonScale = 0.8f;
 
 		// Applying the vertical order: Play -> Join -> Host -> Settings
-		setupBtn(mBtnPlay, startY);
-		setupBtn(mBtnJoin, startY + vSpacing);
-		setupBtn(mBtnHost, startY + vSpacing * 2);
-		setupBtn(mBtnSettings, startY + vSpacing * 3);
+		setupMenuButtonSprite(mBtnPlay, centerX, startY, static_cast<float>(cellW), static_cast<float>(cellH), buttonScale);
+		setupMenuButtonSprite(mBtnJoin, centerX, startY + vSpacing, static_cast<float>(cellW), static_cast<float>(cellH), buttonScale);
+		setupMenuButtonSprite(mBtnHost, centerX, startY + vSpacing * 2.f, static_cast<float>(cellW), static_cast<float>(cellH), buttonScale);
+		setupMenuButtonSprite(mBtnSettings, centerX, startY + vSpacing * 3.f, static_cast<float>(cellW), static_cast<float>(cellH), buttonScale);
 	}
 }
 
@@ -99,18 +119,18 @@ bool StartMenuState::isSpriteClicked(sf::Sprite& sprite, sf::RenderWindow& windo
 **************************/
 SettingsMenuState::SettingsMenuState()
 {
-	mBgTex.loadFromFile("assets/backgrounds/homeMenu.png");
-	mPanelTex.loadFromFile("assets/ui/soccer_ui/panel.png");
-	mSettingWordsTex.loadFromFile("assets/ui/soccer_ui/settings_wording.png");
-	mExitTex.loadFromFile("assets/ui/soccer_ui/exit.png");
+	loadTextureBestEffort(mBgTex, "assets/backgrounds/homeMenu.png");
+	loadTextureBestEffort(mPanelTex, "assets/ui/soccer_ui/panel.png");
+	loadTextureBestEffort(mSettingWordsTex, "assets/ui/soccer_ui/settings_wording.png");
+	loadTextureBestEffort(mExitTex, "assets/ui/soccer_ui/exit.png");
 
-	mVolumeHighTex.loadFromFile("assets/ui/soccer_ui/audio_max.png");
-	mVolumeMidTex.loadFromFile("assets/ui/soccer_ui/audio_mid.png");
-	mVolumeLowTex.loadFromFile("assets/ui/soccer_ui/audio_low.png");
+	loadTextureBestEffort(mVolumeHighTex, "assets/ui/soccer_ui/audio_max.png");
+	loadTextureBestEffort(mVolumeMidTex, "assets/ui/soccer_ui/audio_mid.png");
+	loadTextureBestEffort(mVolumeLowTex, "assets/ui/soccer_ui/audio_low.png");
 
-	mBrightnessHighTex.loadFromFile("assets/ui/soccer_ui/brightness_max.png");
-	mBrightnessMidTex.loadFromFile("assets/ui/soccer_ui/brightness_mid.png");
-	mBrightnessLowTex.loadFromFile("assets/ui/soccer_ui/brightness_low.png");
+	loadTextureBestEffort(mBrightnessHighTex, "assets/ui/soccer_ui/brightness_max.png");
+	loadTextureBestEffort(mBrightnessMidTex, "assets/ui/soccer_ui/brightness_mid.png");
+	loadTextureBestEffort(mBrightnessLowTex, "assets/ui/soccer_ui/brightness_low.png");
 
 	mBg.emplace(mBgTex);
 	mBg->setScale({

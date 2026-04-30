@@ -84,8 +84,8 @@ bool NetworkManager::pollIdAssignment(std::uint8_t& outId)
 		}
 
 		// Validate sender is the host
-		if (!sender.has_value() || *sender != mRemoteAddress || 
-		    static_cast<uint16>(senderPort) != mRemotePort) {
+		if (!sender.has_value() || *sender != mRemoteAddress ||
+			static_cast<uint16>(senderPort) != mRemotePort) {
 			receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
 			continue;
 		}
@@ -165,7 +165,7 @@ void NetworkManager::handleHandshakeRequests()
 			// Send ASSIGNMENT response
 			sf::Packet responsePacket;
 			responsePacket << static_cast<std::uint8_t>(NetMsg::ASSIGNMENT) << assignedPlayerId;
-			
+
 			(void)mSocket.send(responsePacket, mRemoteAddress, static_cast<unsigned short>(mRemotePort));
 		}
 

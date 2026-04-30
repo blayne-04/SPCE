@@ -28,6 +28,21 @@ static float rand01() {
 	return static_cast<float>(mantissa) * (1.0f / 16777216.0f); // [0,1)
 }
 
+// SANTI: COWS 29/04/26
+static float randRange(float minValue, float maxValue) {
+	if (maxValue <= minValue) return minValue;
+	return minValue + (maxValue - minValue) * rand01();
+}
+
+// SANTI: COWS 29/04/26
+static int randIntInclusive(int minValue, int maxValueInclusive) {
+	if (maxValueInclusive <= minValue) return minValue;
+	const float t = rand01();
+	const int span = (maxValueInclusive - minValue) + 1;
+	const int n = static_cast<int>(t * static_cast<float>(span));
+	return minValue + std::clamp(n, 0, span - 1);
+}
+
 // SANTI 28/04/2026: Returns the closest opponent distance squared to a position.
 static float nearestOpponentDistSq(const World& world, bool ownerIsHome, const sf::Vector2f& pos) {
 	const std::size_t start = ownerIsHome ? 4 : 0;
@@ -398,6 +413,11 @@ void World::resetKickoff(int kickoffTeamSide)
 
 	mBall.setOwner(kickoffOwnerId);
 	attachBallToOwnerIfAny();
+
+	// SANTI: COWS 30/04/26
+	// IMPORTANT: Cows persist across goals (they do NOT despawn on restart).
+	// Resetting cows here would make them "disappear after a goal", which breaks
+	// the intended chaos-event fantasy.
 }
 
 // ----------------------------------------------------------------------------
@@ -427,6 +447,17 @@ void World::writeRawState(GameStatePacket& out) const
 		playerState.isGoalkeeper = player.IsGoalkeeper();
 		playerState.isLunging = player.IsLunging();
 	}
+
+	// SANTI: COWS 29/04/26
+	// Cow snapshot state is always sent (fixed-size), but inactive cows are marked active=false.
+	for (std::size_t i = 0; i < Config::kMaxCows; ++i) {
+		CowState& cowState = out.cows[i];
+		const CowRuntime& cow = mCows[i];
+
+		cowState.active = cow.active;
+		cowState.position = cow.position;
+		cowState.velocity = cow.velocity;
+	}
 }
 
 
@@ -437,6 +468,463 @@ void World::applyFrameMovement(const FrameInput& frameData, float dt) {
 
 		mPlayers[i].applyMoveDirection(frameData.inputs[i].moveDirection, dt);
 	}
+}
+
+// ----------------------------------------------------------------------------
+// CHAOS EVENT: COW INVASION (SANTI: COWS 29/04/26)
+// ----------------------------------------------------------------------------
+namespace {
+	static std::uint8_t oppositeSide(std::uint8_t side) {
+		switch (side) {
+		case 0: return 1; // left -> right
+		case 1: return 0; // right -> left
+		case 2: return 3; // top -> bottom
+		default: return 2; // bottom -> top
+		}
+	}
+
+	static sf::Vector2f clampCowInsidePitch(sf::Vector2f pos) {
+		const float r = Config::COW_RADIUS;
+		pos.x = std::clamp(pos.x, r, static_cast<float>(Config::WINDOW_WIDTH) - r);
+		pos.y = std::clamp(pos.y, r, static_cast<float>(Config::WINDOW_HEIGHT) - r);
+		return pos;
+	}
+
+	// SANTI: COWS 30/04/26
+	// Returns true if the cow center is inside the pitch bounds (accounting for radius).
+	// Entering cows start OUTSIDE the pitch, so this helper is used to decide when to clamp.
+	static bool isCowCenterInsidePitch(const sf::Vector2f& pos) {
+		const float r = Config::COW_RADIUS;
+		const float minX = r;
+		const float maxX = static_cast<float>(Config::WINDOW_WIDTH) - r;
+		const float minY = r;
+		const float maxY = static_cast<float>(Config::WINDOW_HEIGHT) - r;
+		return (pos.x >= minX && pos.x <= maxX && pos.y >= minY && pos.y <= maxY);
+	}
+
+	static bool overlapsGoalMouthExpanded(const sf::Vector2f& pos, float radius, bool& outLeftGoal) {
+		// Goal rects are defined in Goal::checkBallCollision and Constants.h.
+		// We expand by radius so the cow circle never overlaps the net rectangle.
+		const float yMin = Config::GOAL_Y_TOP - radius;
+		const float yMax = Config::GOAL_Y_BOTTOM + radius;
+		const bool inGoalY = (pos.y >= yMin) && (pos.y <= yMax);
+		if (!inGoalY) return false;
+
+		// Left goal: x in [0 .. GOAL_WIDTH]
+		const float leftMinX = Config::LEFT_GOAL_X - radius;
+		const float leftMaxX = (Config::LEFT_GOAL_X + Config::GOAL_WIDTH) + radius;
+		if (pos.x >= leftMinX && pos.x <= leftMaxX) {
+			outLeftGoal = true;
+			return true;
+		}
+
+		// Right goal: x in [RIGHT_GOAL_X .. RIGHT_GOAL_X + GOAL_WIDTH]
+		const float rightMinX = Config::RIGHT_GOAL_X - radius;
+		const float rightMaxX = (Config::RIGHT_GOAL_X + Config::GOAL_WIDTH) + radius;
+		if (pos.x >= rightMinX && pos.x <= rightMaxX) {
+			outLeftGoal = false;
+			return true;
+		}
+
+		return false;
+	}
+
+	static void pushCowOutOfGoalMouth(sf::Vector2f& pos) {
+		bool isLeftGoal = true;
+		// SANTI: COWS 30/04/26
+		// We use an extra clearance margin so cows do not look like they are
+		// "inside the goal" even if goal lines/sprites are thicker than GOAL_WIDTH.
+		const float expanded = Config::COW_RADIUS + Config::COW_GOAL_MOUTH_CLEARANCE;
+		if (!overlapsGoalMouthExpanded(pos, expanded, isLeftGoal)) return;
+
+		// Push horizontally out of the net rectangle.
+		if (isLeftGoal) {
+			pos.x = (Config::LEFT_GOAL_X + Config::GOAL_WIDTH) + expanded;
+		}
+		else {
+			pos.x = (Config::RIGHT_GOAL_X) - expanded;
+		}
+
+		pos = clampCowInsidePitch(pos);
+	}
+
+	static sf::Vector2f randomCowTargetInsidePitch() {
+		// SANTI: COWS 30/04/26
+		// Stay away from hard edges so cows distribute across the field.
+		const float edge = Config::COW_RADIUS + Config::COW_EDGE_CLEARANCE;
+
+		// Expanded goal mouth exclusion radius (for nicer visuals).
+		const float expanded = Config::COW_RADIUS + Config::COW_GOAL_MOUTH_CLEARANCE;
+
+		// Try a few samples so cows don't target the goal mouth.
+		for (int attempt = 0; attempt < 8; ++attempt) {
+			const float x = randRange(
+				edge,
+				static_cast<float>(Config::WINDOW_WIDTH) - edge);
+			const float y = randRange(
+				edge,
+				static_cast<float>(Config::WINDOW_HEIGHT) - edge);
+
+			sf::Vector2f p(x, y);
+			bool isLeftGoal = true;
+			if (overlapsGoalMouthExpanded(p, expanded, isLeftGoal)) continue;
+			return p;
+		}
+
+		// Fallback: center (safe).
+		return sf::Vector2f(Config::FIELD_CENTER_X, Config::FIELD_CENTER_Y);
+	}
+
+	static sf::Vector2f cowSpawnOutsidePitch(std::uint8_t side) {
+		const float margin = Config::COW_RADIUS * 2.f;
+
+		if (side == 0) {
+			return sf::Vector2f(
+				-margin,
+				randRange(Config::COW_RADIUS, static_cast<float>(Config::WINDOW_HEIGHT) - Config::COW_RADIUS));
+		}
+		if (side == 1) {
+			return sf::Vector2f(
+				static_cast<float>(Config::WINDOW_WIDTH) + margin,
+				randRange(Config::COW_RADIUS, static_cast<float>(Config::WINDOW_HEIGHT) - Config::COW_RADIUS));
+		}
+		if (side == 2) {
+			return sf::Vector2f(
+				randRange(Config::COW_RADIUS, static_cast<float>(Config::WINDOW_WIDTH) - Config::COW_RADIUS),
+				-margin);
+		}
+		return sf::Vector2f(
+			randRange(Config::COW_RADIUS, static_cast<float>(Config::WINDOW_WIDTH) - Config::COW_RADIUS),
+			static_cast<float>(Config::WINDOW_HEIGHT) + margin);
+	}
+
+	static sf::Vector2f cowExitTargetOutsidePitch(std::uint8_t side, const sf::Vector2f& fromPos) {
+		const float margin = Config::COW_RADIUS * 2.f;
+
+		if (side == 0) return sf::Vector2f(-margin, std::clamp(fromPos.y, Config::COW_RADIUS, static_cast<float>(Config::WINDOW_HEIGHT) - Config::COW_RADIUS));
+		if (side == 1) return sf::Vector2f(static_cast<float>(Config::WINDOW_WIDTH) + margin, std::clamp(fromPos.y, Config::COW_RADIUS, static_cast<float>(Config::WINDOW_HEIGHT) - Config::COW_RADIUS));
+		if (side == 2) return sf::Vector2f(std::clamp(fromPos.x, Config::COW_RADIUS, static_cast<float>(Config::WINDOW_WIDTH) - Config::COW_RADIUS), -margin);
+		return sf::Vector2f(std::clamp(fromPos.x, Config::COW_RADIUS, static_cast<float>(Config::WINDOW_WIDTH) - Config::COW_RADIUS), static_cast<float>(Config::WINDOW_HEIGHT) + margin);
+	}
+
+	static bool isCowOutsidePitch(const sf::Vector2f& pos) {
+		const float margin = Config::COW_RADIUS * 1.5f;
+		if (pos.x < -margin) return true;
+		if (pos.x > static_cast<float>(Config::WINDOW_WIDTH) + margin) return true;
+		if (pos.y < -margin) return true;
+		if (pos.y > static_cast<float>(Config::WINDOW_HEIGHT) + margin) return true;
+		return false;
+	}
+
+	static float dot(sf::Vector2f a, sf::Vector2f b) {
+		return a.x * b.x + a.y * b.y;
+	}
+
+	// Segment-circle intersection (earliest t in [0,1]). Used for ball-cow blocking so the
+	// ball doesn't tunnel through cows at high speed.
+	static bool segmentCircleHit(
+		const sf::Vector2f& start,
+		const sf::Vector2f& end,
+		const sf::Vector2f& center,
+		float radius,
+		float& outT,
+		sf::Vector2f& outPoint,
+		sf::Vector2f& outNormal)
+	{
+		const sf::Vector2f d = end - start;
+		const sf::Vector2f f = start - center;
+
+		const float a = dot(d, d);
+		if (a <= Config::VECTOR_NORMALIZATION_EPSILON) {
+			const sf::Vector2f delta = start - center;
+			const float distSq = dot(delta, delta);
+			if (distSq > radius * radius) return false;
+
+			outT = 0.f;
+			outPoint = start;
+			const float dist = std::sqrt(std::max(distSq, Config::VECTOR_NORMALIZATION_EPSILON));
+			outNormal = (dist > 0.f) ? (delta * (1.f / dist)) : sf::Vector2f(1.f, 0.f);
+			return true;
+		}
+
+		const float b = 2.f * dot(f, d);
+		const float c = dot(f, f) - radius * radius;
+		const float disc = b * b - 4.f * a * c;
+		if (disc < 0.f) return false;
+
+		const float sqrtDisc = std::sqrt(disc);
+		const float inv2a = 1.f / (2.f * a);
+
+		const float t1 = (-b - sqrtDisc) * inv2a;
+		const float t2 = (-b + sqrtDisc) * inv2a;
+
+		float tHit = 2.f;
+		if (t1 >= 0.f && t1 <= 1.f) tHit = t1;
+		else if (t2 >= 0.f && t2 <= 1.f) tHit = t2;
+
+		if (tHit > 1.f) return false;
+
+		outT = tHit;
+		outPoint = start + d * tHit;
+
+		sf::Vector2f n = outPoint - center;
+		const float nLenSq = dot(n, n);
+		if (nLenSq <= Config::VECTOR_NORMALIZATION_EPSILON) {
+			n = sf::Vector2f(1.f, 0.f);
+		}
+		else {
+			const float invLen = 1.f / std::sqrt(nLenSq);
+			n.x *= invLen;
+			n.y *= invLen;
+		}
+		outNormal = n;
+		return true;
+	}
+}
+
+void World::updateCows(float dt) {
+	// SANTI: COWS 29/04/26
+	// Called only by the host simulation (PlayingState). The client never calls this.
+	if (dt <= 0.f) return;
+
+	// SANTI: COWS 30/04/26
+	// New design (per your feedback):
+	// - Cows spawn over time until kMaxCows is reached.
+	// - Cows persist across goals (World::resetKickoff does not clear them).
+	// - Cows never exit; they wander and pause until match end.
+
+	// 1) Spawn scheduling: if we have room for more cows, tick down to next spawn.
+	bool hasFreeSlot = false;
+	for (const CowRuntime& cow : mCows) {
+		if (!cow.active) { hasFreeSlot = true; break; }
+	}
+
+	if (hasFreeSlot) {
+		if (mCowNextSpawnCountdownSec <= 0.f) {
+			mCowNextSpawnCountdownSec = randRange(
+				Config::COW_SPAWN_MIN_DELAY_SECONDS,
+				Config::COW_SPAWN_MAX_DELAY_SECONDS);
+		}
+
+		mCowNextSpawnCountdownSec = std::max(0.f, mCowNextSpawnCountdownSec - dt);
+
+		if (mCowNextSpawnCountdownSec <= 0.f) {
+			// Spawn exactly ONE new cow (simpler, more readable, better pacing).
+			for (CowRuntime& cow : mCows) {
+				if (cow.active) continue;
+
+				cow = CowRuntime{};
+				cow.active = true;
+				cow.phase = 0; // entering
+				cow.entrySide = static_cast<std::uint8_t>(randIntInclusive(0, 3));
+				cow.position = cowSpawnOutsidePitch(cow.entrySide);
+				cow.target = randomCowTargetInsidePitch();
+				cow.velocity = sf::Vector2f(0.f, 0.f);
+				break;
+			}
+
+			// Schedule the next spawn.
+			mCowNextSpawnCountdownSec = randRange(
+				Config::COW_SPAWN_MIN_DELAY_SECONDS,
+				Config::COW_SPAWN_MAX_DELAY_SECONDS);
+		}
+	}
+
+	// 2) Update each active cow.
+	for (CowRuntime& cow : mCows) {
+		if (!cow.active) continue;
+
+		const float eps = Config::COW_TARGET_REACHED_EPSILON;
+		const float epsSq = eps * eps;
+
+		// Pause phase: stand still, then pick a new random target.
+		if (cow.phase == 2) {
+			cow.velocity = sf::Vector2f(0.f, 0.f);
+			cow.phaseTimerSec = std::max(0.f, cow.phaseTimerSec - dt);
+
+			if (cow.phaseTimerSec <= 0.f) {
+				cow.phase = 1; // moving
+				cow.target = randomCowTargetInsidePitch();
+				cow.phaseTimerSec = randRange(
+					Config::COW_WANDER_MOVE_MIN_SECONDS,
+					Config::COW_WANDER_MOVE_MAX_SECONDS);
+			}
+
+			// Keep paused cows in legal space too.
+			if (isCowCenterInsidePitch(cow.position)) {
+				cow.position = clampCowInsidePitch(cow.position);
+				pushCowOutOfGoalMouth(cow.position);
+			}
+
+			continue;
+		}
+
+		// Entering + moving share the same movement code path.
+		float speed = (cow.phase == 0) ? Config::COW_SPEED_ENTERING : Config::COW_SPEED_GRAZING;
+		if (cow.phase == 1) {
+			// Time-limited movement: after this timer runs out, the cow pauses.
+			cow.phaseTimerSec = std::max(0.f, cow.phaseTimerSec - dt);
+		}
+
+		sf::Vector2f dir = cow.target - cow.position;
+		const float lenSq = dir.x * dir.x + dir.y * dir.y;
+
+		if (lenSq <= Config::VECTOR_NORMALIZATION_EPSILON) {
+			cow.velocity = sf::Vector2f(0.f, 0.f);
+		}
+		else {
+			const float invLen = 1.f / std::sqrt(lenSq);
+			dir.x *= invLen;
+			dir.y *= invLen;
+			cow.velocity = dir * speed;
+		}
+
+		cow.position += cow.velocity * dt;
+
+		// Only clamp once the cow is inside the pitch. (Entering cows start outside.)
+		if (isCowCenterInsidePitch(cow.position)) {
+			cow.position = clampCowInsidePitch(cow.position);
+			pushCowOutOfGoalMouth(cow.position);
+		}
+
+		const sf::Vector2f toTarget = cow.target - cow.position;
+		const float distSq = toTarget.x * toTarget.x + toTarget.y * toTarget.y;
+		const bool reachedTarget = (distSq <= epsSq);
+
+		// Phase transitions.
+		if (cow.phase == 0) {
+			// Entering -> pause after reaching the first target inside the pitch.
+			if (reachedTarget && isCowCenterInsidePitch(cow.position)) {
+				cow.phase = 2; // paused
+				cow.phaseTimerSec = randRange(
+					Config::COW_WANDER_PAUSE_MIN_SECONDS,
+					Config::COW_WANDER_PAUSE_MAX_SECONDS);
+				cow.velocity = sf::Vector2f(0.f, 0.f);
+			}
+		}
+		else if (cow.phase == 1) {
+			// Moving -> pause when timer expires or the target is reached.
+			if (reachedTarget || cow.phaseTimerSec <= 0.f) {
+				cow.phase = 2; // paused
+				cow.phaseTimerSec = randRange(
+					Config::COW_WANDER_PAUSE_MIN_SECONDS,
+					Config::COW_WANDER_PAUSE_MAX_SECONDS);
+				cow.velocity = sf::Vector2f(0.f, 0.f);
+			}
+		}
+	}
+}
+
+void World::resolveCowPlayerCollisions(float dt) {
+	// SANTI: COWS 29/04/26
+	// Cows are heavy obstacles: we only push PLAYERS out (not cows).
+	(void)dt;
+
+	const float minDist = Config::COW_RADIUS + Config::PLAYER_HALF_SIZE;
+	const float minDistSq = minDist * minDist;
+
+	const float eps = Config::VECTOR_NORMALIZATION_EPSILON;
+	const float epsSq = eps * eps;
+
+	for (const CowRuntime& cow : mCows) {
+		if (!cow.active) continue;
+
+		for (std::size_t i = 0; i < Config::kNumPlayers; ++i) {
+			sf::Vector2f p = mPlayers[i].getPosition();
+			const sf::Vector2f delta = p - cow.position;
+			const float dSq = delta.x * delta.x + delta.y * delta.y;
+			if (dSq >= minDistSq) continue;
+			if (dSq <= epsSq) continue;
+
+			const float d = std::sqrt(dSq);
+			const sf::Vector2f n(delta.x / d, delta.y / d);
+			p = cow.position + n * minDist;
+
+			// Apply the same bounds rules used elsewhere (goalkeepers are special).
+			if (mPlayers[i].IsGoalkeeper()) {
+				const bool isHomeKeeper = (mPlayers[i].getTeam() == Config::HOME_TEAM_SIDE);
+				p.x = isHomeKeeper ? Config::GOALKEEPER_X_LEFT : Config::GOALKEEPER_X_RIGHT;
+
+				const float yMin = Config::GOAL_Y_TOP + Config::PLAYER_HALF_SIZE;
+				const float yMax = Config::GOAL_Y_BOTTOM - Config::PLAYER_HALF_SIZE;
+				p.y = std::clamp(p.y, yMin, yMax);
+			}
+			else {
+				p.x = std::clamp(p.x, Config::PLAYER_MIN_X, Config::PLAYER_MAX_X);
+				p.y = std::clamp(p.y, Config::PLAYER_MIN_Y, Config::PLAYER_MAX_Y);
+			}
+
+			mPlayers[i].setPosition(p);
+		}
+	}
+}
+
+void World::resolveCowBallCollisions(float dt, const sf::Vector2f& prevBallPos) {
+	// SANTI: COWS 29/04/26
+	// Ball is blocked by cows even during guided travel.
+	if (dt <= 0.f) return;
+	if (mBall.getOwner() >= 0) return;
+
+	// No cows active: nothing to do.
+	bool anyCow = false;
+	for (const CowRuntime& cow : mCows) {
+		if (cow.active) { anyCow = true; break; }
+	}
+	if (!anyCow) return;
+
+	const sf::Vector2f ballNow = mBall.getPosition();
+	const float radius = Config::COW_RADIUS + Config::BALL_RADIUS;
+
+	float bestT = 2.f;
+	sf::Vector2f bestPoint{ 0.f, 0.f };
+	sf::Vector2f bestNormal{ 1.f, 0.f };
+
+	for (const CowRuntime& cow : mCows) {
+		if (!cow.active) continue;
+
+		float t = 0.f;
+		sf::Vector2f p{ 0.f, 0.f };
+		sf::Vector2f n{ 1.f, 0.f };
+		if (!segmentCircleHit(prevBallPos, ballNow, cow.position, radius, t, p, n)) continue;
+		if (t >= bestT) continue;
+
+		bestT = t;
+		bestPoint = p;
+		bestNormal = n;
+	}
+
+	if (bestT > 1.f) return;
+
+	// Compute effective incoming velocity (works for both guided and velocity motion).
+	const sf::Vector2f incoming = (ballNow - prevBallPos) * (1.f / dt);
+
+	// Reflect across the collision normal: v' = v - 2*(v dot n)*n
+	const float vn = incoming.x * bestNormal.x + incoming.y * bestNormal.y;
+	sf::Vector2f reflected = incoming - bestNormal * (2.f * vn);
+	reflected *= Config::COW_BALL_BOUNCE_DAMPING;
+
+	const float speedSq = reflected.x * reflected.x + reflected.y * reflected.y;
+	if (speedSq <= Config::COW_BALL_MIN_BOUNCE_SPEED * Config::COW_BALL_MIN_BOUNCE_SPEED) {
+		// If the bounce is too small, push the ball away so it doesn't "stick" to cows.
+		reflected = bestNormal * Config::COW_BALL_MIN_BOUNCE_SPEED;
+	}
+
+	// Cancel guided travel so the ball becomes physics-driven after the block.
+	mBall.cancelGuidedTravel();
+
+	// Place ball just outside the cow circle.
+	sf::Vector2f correctedPos = bestPoint + bestNormal * (Config::VECTOR_NORMALIZATION_EPSILON * 4.f);
+
+	// Clamp to pitch bounds for safety.
+	const float r = Config::BALL_RADIUS;
+	correctedPos.x = std::clamp(correctedPos.x, r, static_cast<float>(Config::WINDOW_WIDTH) - r);
+	correctedPos.y = std::clamp(correctedPos.y, r, static_cast<float>(Config::WINDOW_HEIGHT) - r);
+
+	mBall.setPosition(correctedPos);
+	mBall.setVelocity(reflected);
+
+	// Allow pickup soon after the deflection.
+	mBall.setStealCooldown(Config::POST_KICK_PICKUP_DELAY_SECONDS);
 }
 
 void World::attachBallToOwnerIfAny() {

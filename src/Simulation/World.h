@@ -5,6 +5,7 @@
 #include "../Objects/Player.h"
 #include "../Common/Packets.h"
 #include <array>
+#include <cstdint> // SANTI: COWS 29/04/26
 
 // ============================================================================
 // WORLD
@@ -144,6 +145,24 @@ public:
 	bool isShootPressed(const FrameInput& frameData, int playerId) const;
 	void commitActionButtonHistory(const FrameInput& frameData);
 
+	// ------------------------------------------------------------------------
+	// CHAOS EVENT: COWS (SANTI: COWS 29/04/26)
+	// ------------------------------------------------------------------------
+	// Host-only simulation of the "Copa Peru cows" chaos event.
+	// Clients never simulate cows; they render CowState from the packet.
+	//
+	// Call site: PlayingState::update (host simulation only).
+	void updateCows(float dt);
+
+	// Cows block players (simple circle collision). This is enforced by pushing
+	// players out of cow circles after movement/separation.
+	void resolveCowPlayerCollisions(float dt);
+
+	// Cows block the ball (including guided passes/shots).
+	// Call after Ball::update(dt). Provide the previous ball position so we can
+	// compute a reliable "effective velocity" even during guided travel.
+	void resolveCowBallCollisions(float dt, const sf::Vector2f& prevBallPos);
+
 
 
 
@@ -167,6 +186,35 @@ private:
 	// SANTI: Playable field boundaries (same as Config::WINDOW_WIDTH/HEIGHT).
 	//        Stored here to be copied into GameStatePacket.
 	sf::FloatRect mPitchBounds{};
+
+	// ------------------------------------------------------------------------
+	// COWS (SANTI: COWS 29/04/26)
+	// ------------------------------------------------------------------------
+	// We keep cow simulation state inside World so the host remains authoritative.
+	// Networking stays simple by exporting a fixed-size array of CowState snapshots.
+	struct CowRuntime {
+		bool active = false;
+		sf::Vector2f position{ 0.f, 0.f };
+		sf::Vector2f velocity{ 0.f, 0.f };
+		sf::Vector2f target{ 0.f, 0.f };
+		// SANTI: COWS 30/04/26
+		// Phase timer is reused for:
+		// - how long the cow keeps moving before pausing
+		// - how long the cow pauses before picking a new target
+		float phaseTimerSec = 0.f;
+
+		// 0 = entering (from outside pitch to first target)
+		// 1 = moving (wandering to a random target)
+		// 2 = paused (standing still, then pick a new target)
+		std::uint8_t phase = 0;
+		std::uint8_t entrySide = 0; // 0 left, 1 right, 2 top, 3 bottom
+	};
+
+	std::array<CowRuntime, Config::kMaxCows> mCows{};
+
+	// SANTI: COWS 30/04/26
+	// Countdown to spawn the NEXT cow. Once kMaxCows are active, no more spawns happen.
+	float mCowNextSpawnCountdownSec = 0.f;
 
 	// SANTI 28/04/2026: Simple per-player retry cooldown to avoid constant steal spam.
 	// Indexed by player ID (0-7). Counts down in seconds.
