@@ -1,5 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
+#include "Common/Constants.h"
 #include "Common/Packets.h"
 #include <optional>
 #include <array>
@@ -8,8 +9,20 @@
 class Renderer {
 public:
     Renderer();
+
+    // SANTI 30/04/26
+    // Draws one authoritative GameStatePacket snapshot.
+    // Renderer does not mutate Match/World; it only consumes packet data.
     void render(sf::RenderWindow& window, const GameStatePacket& gameState);
-    void renderHUD(sf::RenderWindow& window, int homeScore, int awayScore, float matchTimerSec, int stateID);
+
+    // SANTI 30/04/26
+    // Draws score, clock, and current match-state label over the world view.
+    void renderHUD(
+        sf::RenderWindow& window,
+        int homeScore,
+        int awayScore,
+        float matchTimerSec,
+        int stateId);
 
 private:
     // Background assets
@@ -32,10 +45,29 @@ private:
     sf::Texture mBallTexture;
     std::optional<sf::Sprite> mBallSprite;
 
-    // Player Animation assets
-    // [0]=Home/Red/Color1, [1]=Away/Blue/Color6
+    // SANTI 30/04/26
+    // Player skin animation assets.
+    // Each player slot gets its own skin color folder from CharacterSheets/Color2
+    // through CharacterSheets/Color10. This keeps skin tone independent from team.
+    // [playerId 0-7][0]=Down, [1]=Up, [2]=Left, [3]=Right
+    std::array<std::array<sf::Texture, 4>, Config::kNumPlayers> mPlayerSkinTextures{};
+
+    // SANTI 30/04/26
+    // Team uniform animation assets.
+    // Uniforms are team-level: everyone on Home shares one shirt+pants combo,
+    // and everyone on Away shares a different shirt+pants combo.
+    // [team 0-1][0]=Down, [1]=Up, [2]=Left, [3]=Right
+    std::array<std::array<sf::Texture, 4>, 2> mTeamShirtTextures{};
+    std::array<std::array<sf::Texture, 4>, 2> mTeamPantTextures{};
+
+    // SANTI 30/04/26
+    // Goalkeeper uniform assets.
+    // Goalkeepers always wear all black, independent of the randomized outfield
+    // uniforms. This keeps keeper identity clear and prevents accidental kit clash.
     // [0]=Down, [1]=Up, [2]=Left, [3]=Right
-    sf::Texture mTeamTextures[2][4];
+    std::array<sf::Texture, 4> mGoalkeeperShirtTextures{};
+    std::array<sf::Texture, 4> mGoalkeeperPantTextures{};
+
     std::optional<sf::Sprite> mPlayerSprite;
 
     // Animation constants
