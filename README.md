@@ -1,27 +1,158 @@
-Super Copa Perú Evolution should feel like a wild, fast, personality-filled arcade soccer game inspired by the rhythm of FIFA and PES, but filtered through the chaos, energy, and local flavor of Copa Perú. A player should
-  immediately understand that this is not trying to be a realistic simulation. It should feel faster, stranger, more playful, and more dramatic, while still delivering the core pleasure of soccer: building attacks, switching
-  momentum, scoring goals, and surviving unpredictable moments.
+# Super Copa Perú Evolution
 
-  From the player’s perspective, the game should always feel direct and readable. When your team has possession, you are the player with the ball. If you pass to a teammate, you become that teammate, so the attack flows
-  naturally from one player to the next. That should make offense feel smooth and intuitive: carry the ball forward, pass into space, receive it immediately as the next player, keep the move alive, and look for the finish. When
-  your team loses the ball, control shifts into defense, where you switch between defenders, pressure the opponent, and try to win possession back before they create a chance.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
+[![SFML](https://img.shields.io/badge/SFML-3.1-green.svg)](https://www.sfml-dev.org/)
+[![C++](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/)
+[![Build with CMake](https://img.shields.io/badge/CMake-3.15+-064F8C.svg)](https://cmake.org/)
 
-  A full match should feel like a real contest, not just a tech demo. The game begins with kickoff, opens into active play, and moves through goals, resets, pressure swings, late attacks, and final results. The score, clock, and
-  match state should always be clear. If regulation ends level, overtime should feel like a genuine sudden rise in tension. By the time the match ends, the player should feel like they played through a complete arcade football
-  story rather than a disconnected set of mechanics.
+🇵🇪⚽
 
-  What should make the game stand out is its Copa Perú personality. The player should feel like this is football with a distinctly Peruvian sense of humor and chaos. Matches should sometimes be interrupted or transformed by
-  surprise events that make the game memorable and funny instead of predictable. A player should come away thinking, “That felt like soccer, but it also felt ridiculous in the best way.”
+> *Arcade football with Peruvian chaos, wild momentum, and the occasional cow on the pitch.*
 
-  Those special events should feel like part of the identity of the game, not just random gimmicks. One match might suddenly make the player unstoppable for a few seconds. Another might turn the field into a mess of hazards and
-  improvised obstacles. Another might give players a burst of speed and change the pace of the attack completely. These moments should feel like stories people would retell afterward, the way people talk about absurd things
-  happening in real local football scenes.
+**Super Copa Perú Evolution** is a C++ / SFML arcade football game inspired by the spirit of **Copa Perú** — Peru’s famously chaotic, regional, anything-can-happen football competition.
 
-  The final game should also feel lively outside of pure gameplay. Menus, match presentation, team identity, sound, and language options should help sell the tone. A player should be able to pick up the game and understand how
-  to play quickly, whether they use keyboard or controller. The game should feel accessible, energetic, and playful, with enough personality that even someone watching from the side could immediately tell it is not “just another
-  soccer game.”
+The game leans into fast action, funny moments, and sudden momentum swings. Matches are built around possession, pressure, and unpredictable chaos, with the legendary **cow invasion event** setting the tone.
 
-  In its finished form, a player should be able to say something like this:
+---
 
-  “It’s a fast arcade soccer game where every attack flows through the player with the ball, passing hands control to the receiver, defending is all about switching and pressure, and every match feels like a mix of real football
-  structure and absurd Copa Perú-style chaos.”
+## What Is Copa Perú?
+
+Copa Perú is a real football tournament in Peru known for regional identity, passion, and unpredictability. It is the perfect inspiration for a game that feels:
+
+**fast** · **chaotic** · **funny** · **dramatic**
+
+---
+
+## Screenshots
+
+![Screenshot](/assets/to/SuperCopaPeruEvolution.png)
+
+---
+
+## Quick Start: How to Play
+
+**Goal:** Score more goals than the opponent in 3 minutes.
+
+| Action | Default Key |
+|--------|-------------|
+| Move player | `WASD` |
+| Pass | `J` |
+| Shoot | `K` |
+| Tackle / Steal | `L` |
+| Switch player (defense) | `I` |
+
+- Possession changes automatically after tackles or goals.
+- The cow invasion triggers randomly.
+- Cows block shots, disrupt passes, and cannot leave the pitch.
+
+---
+
+## Gameplay
+
+Super Copa Perú Evolution is built around quick, readable football action:
+
+- Move, pass, shoot, tackle, and switch players on defense
+- AI teammates and opponents pressure the ball and react intelligently
+- Goalkeepers protect the six-yard box
+- Host-authoritative simulation keeps match logic consistent
+- Survive chaos events like the **cow invasion**
+
+### What Makes It Different?
+
+This is **not** a realistic football sim. It is an arcade experience with:
+
+- fast ball movement
+- possession-based control
+- defensive switching
+- absurd match events that make every game feel unique
+
+---
+
+## Features
+
+### Core Football
+- Player movement and ball control
+- Passing and shooting
+- Tackling and steals
+- Player switching on defense
+- Goal detection and scoring
+- Kickoff and restart flow
+- Match timer and state handling
+
+### AI and Simulation
+- AI teammates and opponents
+- Defensive and attacking behavior
+- Separation physics to avoid player overlap
+- Goalkeeper logic
+- Six-yard box protection
+- Host-authoritative architecture
+
+### Copa Perú Chaos
+- **Cow invasion event** — cows move onto the pitch and interfere with play
+- Cows do not clip into goals or leave the pitch incorrectly
+- Designed for memorable, chaotic moments
+
+### Presentation
+- SFML-based 2D rendering
+- Player and team textures
+- Directional animation support
+- Team uniforms
+- Arcade-style visual presentation
+
+---
+
+## Download and Build
+
+
+Requirements:
+- CMake 3.15+
+- A C++17 compiler
+- Git
+- SFML 3.1 (fetched automatically by CMake)
+
+```bash
+git clone https://github.com/blayne-04/SPCE.git
+cd SPCE
+cmake -S . -B build
+cmake --build build
+```
+
+The executable will be created in:
+
+```bash
+build/bin/
+```
+
+### Run the Game
+
+Make sure your working directory is the project root, then launch the executable from `build/bin/`.
+
+---
+
+## Project Structure
+
+```text
+src/
+├── Common/     shared constants, packets, and types
+├── Core/       renderer and core engine systems
+├── Input/      player and AI input handling
+├── Objects/    players, ball, goals, and related entities
+└── Simulation/ world logic, match rules, physics, and AI behavior
+```
+
+---
+
+## Development Team
+
+Alphabetical order:
+
+- **Blayne Fuller**
+- **Brian Reano Juarez**
+- **Ryan Von Bereghy**
+- **Santiago Pelaez**
+
+---
+
+## License
+
+This project is licensed under the MIT License. See [`LICENSE.md`](LICENSE.md) for details.
