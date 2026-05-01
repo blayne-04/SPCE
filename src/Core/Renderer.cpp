@@ -5,12 +5,12 @@
  * @brief Snapshot-only rendering implementation.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help extract small helper
+ * A generative AI assistant (DeepSeek) was used in a limited way to help extract small helper
  * functions (sprite-sheet frame selection, layered sprite drawing) and to draft some
  * documentation comments. The renderer behavior (what is drawn and from which packet
  * fields) was implemented and reviewed by the team and validated via play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this C++/SFML renderer implementation. Suggest a readable structure for drawing
  * a snapshot-only scene (players, ball, cows, HUD, overlays) from GameStatePacket, and help
  * reduce duplication in sprite-sheet frame selection without changing runtime behavior."

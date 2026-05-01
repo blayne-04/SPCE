@@ -5,11 +5,11 @@
  * @brief Ball entity with ownership, velocity, cooldown, and guided travel.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help draft/format documentation
+ * A generative AI assistant (DeepSeek) was used in a limited way to help draft/format documentation
  * comments and to sanity-check the structure of the "guided travel" (time-based travel from
  * start to end) state. The team implemented the behavior and integrated it with World/Match.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this Ball class header. Suggest concise Doxygen comments and highlight any common
  * pitfalls for representing a time-based 'guided travel' state alongside velocity-based motion.
  * Do not change runtime behavior."
@@ -18,22 +18,22 @@
 #include "SFML/Graphics.hpp"
 #include "../Common/Constants.h"
 
-// ============================================================================
-// BALL CLASS
-// ============================================================================
-// Represents the ball on the field. Inherits from sf::CircleShape for rendering.
-// Owns possession (owner player ID), steal cooldown, and velocity.
-//
-// The ball is simulated by the host. Snapshot data is exported via World.
-// ============================================================================
+ // ============================================================================
+ // BALL CLASS
+ // ============================================================================
+ // Represents the ball on the field. Inherits from sf::CircleShape for rendering.
+ // Owns possession (owner player ID), steal cooldown, and velocity.
+ //
+ // The ball is simulated by the host. Snapshot data is exported via World.
+ // ============================================================================
 
-/**
- * @class Ball
- * @brief Owns ball physics state and possession state.
- *
- * Ball does not choose pass targets, shot targets, or interceptions. World and
- * MatchState decide those rules; Ball executes movement.
- */
+ /**
+  * @class Ball
+  * @brief Owns ball physics state and possession state.
+  *
+  * Ball does not choose pass targets, shot targets, or interceptions. World and
+  * MatchState decide those rules; Ball executes movement.
+  */
 class Ball : public sf::CircleShape
 {
 public:

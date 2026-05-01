@@ -9,23 +9,23 @@
 #include "../Common/Constants.h" // Config tuning table
 #include <algorithm>             // std::clamp
 
-// ============================================================================
-// PLAYER CLASS
-// ============================================================================
-// Represents a single player on the field (outfield or goalkeeper).
-// Inherits from sf::CircleShape for rendering.
-// Owns physics state (position inherited from sf::CircleShape, plus velocity,
-// facing direction, lunging flag, team ID, player ID, goalkeeper flag).
-//
-// This class supports snapshotting by exposing const getters for key state.
-// ============================================================================
+ // ============================================================================
+ // PLAYER CLASS
+ // ============================================================================
+ // Represents a single player on the field (outfield or goalkeeper).
+ // Inherits from sf::CircleShape for rendering.
+ // Owns physics state (position inherited from sf::CircleShape, plus velocity,
+ // facing direction, lunging flag, team ID, player ID, goalkeeper flag).
+ //
+ // This class supports snapshotting by exposing const getters for key state.
+ // ============================================================================
 
-/**
- * @class Player
- * @brief Represents one home or away player, including goalkeepers.
- *
- * Player owns per-player physical state. World decides when movement is applied.
- */
+ /**
+  * @class Player
+  * @brief Represents one home or away player, including goalkeepers.
+  *
+  * Player owns per-player physical state. World decides when movement is applied.
+  */
 class Player : public sf::CircleShape {
 public:
 	// ------------------------------------------------------------------------
@@ -52,7 +52,7 @@ public:
 	}
 
 	// ------------------------------------------------------------------------
-	// PUBLIC INTERFACE (not yet implemented fully)
+	// PUBLIC INTERFACE 
 	// ------------------------------------------------------------------------
 	/** @brief Legacy placeholder update hook. Movement currently comes from World. */
 	void update(float downTime);
@@ -115,7 +115,7 @@ public:
 
 private:
 	// ------------------------------------------------------------------------
-	// MEMBER VARIABLES (verbose names, all default-initialized)
+	// MEMBER VARIABLES
 	// ------------------------------------------------------------------------
 
 	// Defaults prevent uninitialized snapshot data.

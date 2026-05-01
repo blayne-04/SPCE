@@ -5,12 +5,12 @@
  * @brief Kickoff, playing, and game-over rule implementation.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help re-order/comment the
+ * A generative AI assistant (Codex) was used in a limited way to help re-order/comment the
  * `PlayingState::update` pipeline for readability (movement, ball, goals, timer), without
  * changing the match rules. The team owned the match design and validated behavior through
  * play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Given these MatchState classes, suggest a readable `PlayingState::update` ordering for:
  * movement, ball update, goal detection, and match timer. Keep behavior unchanged; focus on
  * clarity and maintainability."
@@ -20,9 +20,9 @@
 #include "../Common/Constants.h"
 #include "../Simulation/PhysicsEngine.h"
 
-/* ========================================= */
-/*              GAME OVER                    */
-/* ========================================= */
+ /* ========================================= */
+ /*              GAME OVER                    */
+ /* ========================================= */
 
 GameOverState::GameOverState()
 {

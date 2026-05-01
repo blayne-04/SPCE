@@ -4,12 +4,12 @@
  * @brief Polymorphic match-state classes for kickoff, playing, and game over.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help draft/format documentation
+ * A generative AI assistant (Gemini) was used in a limited way to help draft/format documentation
  * comments and to sanity-check the base-class shape for a simple match rule state machine
  * (Kickoff/Playing/GameOver). The team defined the architecture and packet contract, then
  * implemented and tested the behavior.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this MatchState header for a C++/SFML soccer game. Suggest concise Doxygen comments
  * and a clean base-class API (update/onEnter/onExit + packet state id) without changing any
  * runtime behavior."
@@ -18,7 +18,7 @@
 #include "../Common/Packets.h"
 #include <cstdint> // for std::uint8_t
 
-/* Forward declaration to avoid circular dependency */
+ /* Forward declaration to avoid circular dependency */
 class Match;
 
 /* ========================================= */

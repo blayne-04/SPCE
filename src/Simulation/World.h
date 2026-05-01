@@ -5,12 +5,12 @@
  * @brief Owns the simulation sandbox: players, ball, goals, cows, and pitch bounds.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help draft/format documentation comments
+ * A generative AI (Gemini) assistant was used in a limited way to help draft/format documentation comments
  * and to propose a clean, readable public API boundary for World (object ownership + mechanics)
  * vs Match/MatchState (rules + transitions). The team implemented the simulation behavior and
  * validated it through play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this World class header for a C++/SFML soccer game. Suggest concise
  * Doxygen comments and a clear separation of responsibilities between World
  * (object ownership + mechanics) and Match/MatchState (rules + transitions)."
@@ -23,22 +23,22 @@
 #include <array>
 #include <cstdint>
 
-// ============================================================================
-// WORLD
-// ============================================================================
-// The "sandbox" that owns all game objects (players, ball, goals, pitch bounds).
-// Does NOT contain match rules (score, timer, state machine). That is Match's job.
-//
-// World can produce a GameStatePacket snapshot without owning match rules.
-// ============================================================================
+ // ============================================================================
+ // WORLD
+ // ============================================================================
+ // The "sandbox" that owns all game objects (players, ball, goals, pitch bounds).
+ // Does NOT contain match rules (score, timer, state machine). That is Match's job.
+ //
+ // World can produce a GameStatePacket snapshot without owning match rules.
+ // ============================================================================
 
-/**
- * @class World
- * @brief Simulation owner for physical game objects.
- *
- * World mutates objects and produces raw snapshots. Match owns score, timer,
- * current state, and higher-level rules.
- */
+ /**
+  * @class World
+  * @brief Simulation owner for physical game objects.
+  *
+  * World mutates objects and produces raw snapshots. Match owns score, timer,
+  * current state, and higher-level rules.
+  */
 class World {
 public:
 	// ------------------------------------------------------------------------

@@ -5,11 +5,11 @@
  * @brief Pure geometry helpers for separation and interception.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help draft documentation comments and suggest
+ * A generative AI assistant (Codex) was used in a limited way to help draft documentation comments and suggest
  * small helper extractions for geometry math (dot products, clamping, corridor checks). The team
  * implemented and verified the final behavior through play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this PhysicsEngine implementation for a C++/SFML soccer game. Suggest
  * a clean, readable implementation for player separation and 'segment corridor'
  * interceptions while keeping the module geometry-only and behavior unchanged."

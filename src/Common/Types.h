@@ -5,7 +5,7 @@
  * @brief Small shared enums for application and match state names.
  */
 
-/** @brief High-level application screen categories. */
+ /** @brief High-level application screen categories. */
 enum class AppState {
 	MainMenu,
 	SettingsMenu,

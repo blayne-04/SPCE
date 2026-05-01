@@ -5,12 +5,12 @@
  * @brief UDP mailroom for host/client packet exchange.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to review non-blocking UDP receive
+ * A generative AI assistant (Codex) was used in a limited way to review non-blocking UDP receive
  * loops and to sanity-check the "type-tagged packet" approach (so INPUT/STATE packets are
  * not mis-parsed). The team designed and implemented the networking architecture and then
  * validated it via local host/client play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this UDP NetworkManager interface. Suggest a safe packet-type tagging approach and
  * a non-blocking receive loop pattern that can keep only the latest STATE snapshot. Keep the
  * API small and do not add gameplay rules."

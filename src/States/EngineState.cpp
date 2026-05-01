@@ -5,14 +5,14 @@
  * @brief Application-state update/render implementation.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited, targeted way to help draft/format some
+ * A generative AI assistant (Codex) was used in a limited, targeted way to help draft/format some
  * documentation comments and to suggest a few state-transition/input-routing edge cases to
  * double-check (for example: ensuring pause/menu navigation does not leak old match state).
  * The team implemented the state logic and verified behavior via builds and play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Given this EngineState implementation, suggest places where returning to the main menu should
- * reset Match/NetworkManager, and propose small helper functions to replace any complex lambdas.
+ * reset Match/NetworkManager, and propose small helper functions.
  * Keep the code readable and do not change behavior."
  */
 

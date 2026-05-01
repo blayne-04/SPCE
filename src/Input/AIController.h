@@ -5,11 +5,11 @@
  * @brief Input generator for computer-controlled soccer players.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help draft/format documentation comments
+ * A generative AI assistant (DeepSeek) was used in a limited way to help draft/format documentation comments
  * and to suggest a simple "cooldown-based" structure so AI pass/shoot actions behave like one-tick
  * impulses (instead of being held every frame). The team tuned the heuristics through play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this AIController header for a C++/SFML soccer game. Suggest clear Doxygen
  * comments and a simple API that generates InputPacket values from a GameStatePacket,
  * including per-player cooldowns to avoid holding pass/shoot every frame."
@@ -19,15 +19,15 @@
 #include "../Common/Constants.h"
 #include <array>
 
-// This header name intentionally matches the class name. This avoids confusion and
-// helps prevent case-sensitive include issues on Linux/CI.
-/**
- * @class AIController
- * @brief Converts a snapshot into AI-controlled InputPacket decisions.
- *
- * The AI is intentionally a generator. It does not mutate World, Match, or
- * NetworkManager directly.
- */
+ // This header name intentionally matches the class name. This avoids confusion and
+ // helps prevent case-sensitive include issues on Linux/CI.
+ /**
+  * @class AIController
+  * @brief Converts a snapshot into AI-controlled InputPacket decisions.
+  *
+  * The AI is intentionally a generator. It does not mutate World, Match, or
+  * NetworkManager directly.
+  */
 class AIController {
 public:
 	AIController() = default;

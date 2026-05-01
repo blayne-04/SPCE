@@ -5,12 +5,12 @@
  * @brief Snapshot-only SFML renderer for the soccer game.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help draft/format documentation
+ * A generative AI assistant (Codex) was used in a limited way to help draft/format documentation
  * comments and to sanity-check the public API for a "snapshot-only" renderer (consume
  * `GameStatePacket`, draw, do not mutate simulation/networking). The team implemented the
  * renderer and validated visuals through play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this C++/SFML renderer header. Suggest concise Doxygen comments and a clean
  * snapshot-only render API that draws players, ball, cows, HUD, and overlays from
  * GameStatePacket without mutating simulation/networking state."
@@ -22,13 +22,13 @@
 #include <optional>
 #include <array>
 
-/**
- * @class Renderer
- * @brief Draws the current authoritative game snapshot.
- *
- * Renderer intentionally does not own or modify World, Match, NetworkManager,
- * or InputHandler. It only displays the snapshot it receives.
- */
+ /**
+  * @class Renderer
+  * @brief Draws the current authoritative game snapshot.
+  *
+  * Renderer intentionally does not own or modify World, Match, NetworkManager,
+  * or InputHandler. It only displays the snapshot it receives.
+  */
 class Renderer {
 public:
 	Renderer();

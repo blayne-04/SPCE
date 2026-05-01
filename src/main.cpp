@@ -8,12 +8,12 @@
 #include "Test.h"
 #include <iostream>
 
-/**
- * @brief Program entry point.
- *
- * Creates the single GameEngine instance and runs the main loop until the user
- * closes the window or an exception occurs.
- */
+ /**
+  * @brief Program entry point.
+  *
+  * Creates the single GameEngine instance and runs the main loop until the user
+  * closes the window or an exception occurs.
+  */
 int main()
 {
 	std::cout << "===================================" << std::endl;

@@ -5,11 +5,11 @@
  * @brief Central tuning table for rendering, networking, physics, AI, cows, and controls.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help organize this constant table and
+ * A generative AI assistant (Codex) was used in a limited way to help organize this constant table and
  * improve naming/comment clarity while tuning gameplay feel. The team selected the final values
  * and tradeoffs and verified them via play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this C++ constants table for a small SFML soccer game. Suggest clearer sectioning and
  * names for physics/AI/network/render constants, and add brief comments that explain intent.
  * Do not change values unless a naming mismatch is obvious."

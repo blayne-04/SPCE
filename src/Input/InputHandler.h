@@ -7,18 +7,18 @@
 
 #include "../Common/Packets.h"
 
-// ============================================================================
-// INPUT HANDLER
-// ============================================================================
-// Captures raw hardware input (keyboard) and converts it into
-// an InputPacket. This is a pure generator - no networking code here.
-// This module intentionally has no dependency on networking code.
-// ============================================================================
+ // ============================================================================
+ // INPUT HANDLER
+ // ============================================================================
+ // Captures raw hardware input (keyboard) and converts it into
+ // an InputPacket. This is a pure generator - no networking code here.
+ // This module intentionally has no dependency on networking code.
+ // ============================================================================
 
-/**
- * @class InputHandler
- * @brief Pure input generator with no networking or simulation ownership.
- */
+ /**
+  * @class InputHandler
+  * @brief Pure input generator with no networking or simulation ownership.
+  */
 class InputHandler {
 public:
 	/**

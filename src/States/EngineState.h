@@ -5,13 +5,13 @@
  * @brief Application state classes for menu, gameplay, host, client, and single-player modes.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited, targeted way while building this project:
+ * A generative AI assistant was (Gemini) used in a limited, targeted way while building this project:
  * it helped draft/format some documentation comments and suggested a few state-stack edge
  * cases to double-check (for example: resetting Match/NetworkManager when returning to the
  * main menu). The team designed the state architecture, implemented the features, and
  * reviewed/edited all AI-suggested text/ideas before integration.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this C++ game state stack (menu/host/client/single-player). Suggest concise Doxygen
  * comments and call out any common edge cases around pushing/popping states and resetting
  * long-lived resources. Do not change runtime behavior."
@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string>
 
-/* Forward declaration */
+ /* Forward declaration */
 class GameEngine;
 
 /**
@@ -115,37 +115,37 @@ private:
  */
 class SettingsMenuState : public EngineState {
 public:
-    SettingsMenuState();
-    void tick(GameEngine& engine, float dt) override;
-    void render(GameEngine& engine) override;
+	SettingsMenuState();
+	void tick(GameEngine& engine, float dt) override;
+	void render(GameEngine& engine) override;
 
 private:
-    sf::Texture mBgTex;
-    sf::Texture mPanelTex;
-    sf::Texture mExitTex;
-    sf::Texture mSettingWordsTex;
-    sf::Texture mVolumeHighTex;
-    sf::Texture mVolumeMidTex;
-    sf::Texture mVolumeLowTex;
+	sf::Texture mBgTex;
+	sf::Texture mPanelTex;
+	sf::Texture mExitTex;
+	sf::Texture mSettingWordsTex;
+	sf::Texture mVolumeHighTex;
+	sf::Texture mVolumeMidTex;
+	sf::Texture mVolumeLowTex;
 
-    sf::Texture mBrightnessHighTex;
-    sf::Texture mBrightnessMidTex;
-    sf::Texture mBrightnessLowTex;
+	sf::Texture mBrightnessHighTex;
+	sf::Texture mBrightnessMidTex;
+	sf::Texture mBrightnessLowTex;
 	std::optional<sf::Sprite> mBg;
-    std::optional<sf::Sprite> mPanel;
-    std::optional<sf::Sprite> mExitBtn;
-    std::optional<sf::Sprite> mSettingWords;
+	std::optional<sf::Sprite> mPanel;
+	std::optional<sf::Sprite> mExitBtn;
+	std::optional<sf::Sprite> mSettingWords;
 
-    std::optional<sf::Sprite> mVolumeIcon;
-    std::optional<sf::Sprite> mBrightnessIcon;
+	std::optional<sf::Sprite> mVolumeIcon;
+	std::optional<sf::Sprite> mBrightnessIcon;
 
-    // 0 = LOW, 1 = MID, 2 = HIGH
-    int mVolumeState = 2;
-    int mBrightnessState = 1;
-    bool mMouseWasDown = false;
+	// 0 = LOW, 1 = MID, 2 = HIGH
+	int mVolumeState = 2;
+	int mBrightnessState = 1;
+	bool mMouseWasDown = false;
 
-    bool isMouseOver(const sf::FloatRect& bounds, sf::RenderWindow& window);
-    void updateIcons();
+	bool isMouseOver(const sf::FloatRect& bounds, sf::RenderWindow& window);
+	void updateIcons();
 };
 
 /**

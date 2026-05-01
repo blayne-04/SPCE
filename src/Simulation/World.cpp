@@ -5,14 +5,13 @@
  * @brief Implementation of the simulation sandbox.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help review small geometry/collision helpers
+ * A generative AI assistant (Codex) was used in a limited way to help review small geometry/collision helpers
  * (segment corridors, overlap checks) and to draft some documentation comments. The team implemented
  * the simulation behavior and tuned gameplay through play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this World simulation file. Suggest small helper functions for geometry/collision checks
- * (e.g., rect overlap, distance squared) and comment the update pipeline for readability, without
- * changing runtime behavior."
+ * and comment the update pipeline for readability, without changing runtime behavior."
  */
 
 #include "../Common/Constants.h"
@@ -550,7 +549,7 @@ namespace {
 			pos.x = (Config::LEFT_GOAL_X + Config::GOAL_WIDTH) + expanded;
 		}
 		else {
-			pos.x = (Config::RIGHT_GOAL_X) - expanded;
+			pos.x = (Config::RIGHT_GOAL_X)-expanded;
 		}
 
 		pos = clampCowInsidePitch(pos);

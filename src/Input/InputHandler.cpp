@@ -8,13 +8,13 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <cmath>
 
-/**
- * @brief Read local keyboard state and return reliable DOWN-state input.
- *
- * The client sends button-down booleans every tick instead of one-frame press
- * edges. The authoritative host can later compare current and previous input
- * if it needs "pressed this frame" behavior.
- */
+ /**
+  * @brief Read local keyboard state and return reliable DOWN-state input.
+  *
+  * The client sends button-down booleans every tick instead of one-frame press
+  * edges. The authoritative host can later compare current and previous input
+  * if it needs "pressed this frame" behavior.
+  */
 InputPacket InputHandler::getLocalInput(std::uint8_t playerID)
 {
 	InputPacket out{};

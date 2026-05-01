@@ -5,12 +5,12 @@
  * @brief Match referee implementation.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help draft/format documentation comments
+ * A generative AI assistant (Codex) was used in a limited way to help draft/format documentation comments
  * and to suggest a small set of edge cases to test (for example: control switching when the ball
  * becomes loose, and keeper possession boundaries). The team implemented the referee logic and
  * validated behavior through play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this Match referee implementation. Suggest guard-return patterns and small helper
  * extractions that improve readability of control switching and match timer logic, without
  * changing behavior."

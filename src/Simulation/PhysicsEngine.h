@@ -5,11 +5,11 @@
  * @brief Pure geometry and collision helpers for simulation code.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help draft/format documentation comments and
+ * A generative AI assistant (DeepSeek) was used in a limited way to help draft/format documentation comments and
  * to sanity-check the public API shape for geometry-only helpers (player separation, segment corridor
  * interception). The team implemented and validated the final behavior through play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this PhysicsEngine header for a C++/SFML soccer game. Suggest concise
  * Doxygen comments for a geometry-only API (player separation + segment corridor
  * interception) that uses player ID ranges and does not depend on match rules."
@@ -18,9 +18,9 @@
 #include "Simulation/World.h"
 #include <cstdint>
 
-/**
- * @brief Result from a segment-corridor interception test.
- */
+ /**
+  * @brief Result from a segment-corridor interception test.
+  */
 struct SegmentInterceptionResult {
 	bool hasInterception = false;
 	std::uint8_t interceptorId = 255;      // 255 = "none" sentinel

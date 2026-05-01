@@ -5,12 +5,12 @@
  * @brief Wire contract for the host-authoritative soccer game.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to review the `sf::Packet` field-by-field
+ * A generative AI assistant (Codex) was used in a limited way to review the `sf::Packet` field-by-field
  * serialization (common pitfalls: missing fields, type mismatches, and the need for packet type
  * tagging). The team defined the networking approach and validated the final packet contract by
  * building and running host/client sessions.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this packet contract for SFML `sf::Packet` serialization. Suggest a robust type-tag
  * enum and safe operator<< / operator>> implementations (field-by-field, no memcpy), and call out
  * any likely omissions that would break host/client compatibility."
@@ -23,27 +23,27 @@
 
 #include "Constants.h"
 
-// ============================================================================
-// NETWORK PROTOCOL (HOST-AUTHORITATIVE, SNAPSHOT-DRIVEN)
-// ============================================================================
-//
-// Core rules:
-// 1) Player IDs: 0-3 = Home, 4-7 = Away (8 players total; 4 per team).
-// 2) Host is authoritative: ...
-// 3) This header is the wire contract.
-// 4) No raw struct memcpy. Always serialize field-by-field with sf::Packet.
-//
-// Input reliability rule (important for UDP):
-// - Send button DOWN state each tick (shootDown/passDown/etc).
-// - Host computes "pressed this frame" by comparing with last tick's input.
-// ============================================================================
+ // ============================================================================
+ // NETWORK PROTOCOL (HOST-AUTHORITATIVE, SNAPSHOT-DRIVEN)
+ // ============================================================================
+ //
+ // Core rules:
+ // 1) Player IDs: 0-3 = Home, 4-7 = Away (8 players total; 4 per team).
+ // 2) Host is authoritative: ...
+ // 3) This header is the wire contract.
+ // 4) No raw struct memcpy. Always serialize field-by-field with sf::Packet.
+ //
+ // Input reliability rule (important for UDP):
+ // - Send button DOWN state each tick (shootDown/passDown/etc).
+ // - Host computes "pressed this frame" by comparing with last tick's input.
+ // ============================================================================
 
-/**
- * @brief Type tag at the front of every UDP packet.
- *
- * This prevents the receiver from accidentally parsing an input packet as a
- * game-state packet or vice versa.
- */
+ /**
+  * @brief Type tag at the front of every UDP packet.
+  *
+  * This prevents the receiver from accidentally parsing an input packet as a
+  * game-state packet or vice versa.
+  */
 enum class NetMsg : std::uint8_t {
 	INPUT = 1,        // Client -> Host payload: InputPacket
 	STATE = 2,        // Host   -> Client payload: GameStatePacket

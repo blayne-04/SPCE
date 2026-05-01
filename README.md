@@ -15,14 +15,14 @@ Super Copa Peru Evolution is a C++ / SFML arcade football game inspired by the s
 
 Goal: score more goals than the opponent before the match timer ends.
 
-| Action | Default Key |
-| --- | --- |
-| Move | WASD |
-| Pass | J |
-| Shoot | K |
-| Tackle / Steal | L |
-| Switch Player (defense) | I |
-| Pause | Esc |
+| Action                  | Default Key |
+| ----------------------- | ----------- |
+| Move                    | WASD        |
+| Pass                    | J           |
+| Shoot                   | K           |
+| Tackle / Steal          | L           |
+| Switch Player (defense) | I           |
+| Pause                   | Esc         |
 
 ## Features
 

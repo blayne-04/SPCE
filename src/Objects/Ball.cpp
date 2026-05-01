@@ -5,11 +5,11 @@
  * @brief Ball physics, ownership, and guided travel implementation.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help draft documentation comments
- * and suggest small helper extractions (for example: normalization and early-return guards).
+ * A generative AI assistant (DeepSeek) was used in a limited way to help draft documentation comments
+ * and suggest small helper extractions.
  * The team implemented the actual behavior and validated it via builds and play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this Ball implementation for a C++/SFML soccer game. Suggest concise
  * Doxygen comments and guard-return patterns for guided travel vs velocity motion,
  * without changing runtime behavior."
@@ -19,7 +19,7 @@
 #include <algorithm>             // std::clamp
 #include <cmath>                 // std::sqrt
 
-// Helper for normalization (guard returns keep callers simple).
+ // Helper for normalization (guard returns keep callers simple).
 static sf::Vector2f normalizeOrZero(sf::Vector2f v) {
 	const float lenSq = v.x * v.x + v.y * v.y;
 	const float eps = Config::VECTOR_NORMALIZATION_EPSILON;

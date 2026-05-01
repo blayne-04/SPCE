@@ -5,11 +5,11 @@
  * @brief Snapshot-driven soccer AI input generation.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help draft documentation comments and suggest
+ * A generative AI assistant (DeepSeek) was used in a limited way to help draft documentation comments and suggest
  * a readable structure for heuristic decisions (movement, pass/shoot/tackle) based only on snapshot data.
  * The team tuned the final behavior through play-testing.
  *
- * Example prompt used:
+ * Prompt used:
  * "Given this snapshot-driven AI controller, suggest a readable structure for
  * movement + pass/shoot/tackle decisions using only GameStatePacket data and
  * producing InputPacket output. Keep the AI fair via simple cooldowns and

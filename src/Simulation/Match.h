@@ -5,11 +5,11 @@
  * @brief Referee/controller for World, MatchState, score, timer, and control routing.
  *
  * AI assistance disclosure:
- * A generative AI assistant was used in a limited way to help draft/format documentation
+ * A generative AI assistant (DeepSeek) was used in a limited way to help draft/format documentation
  * comments and to sanity-check state-machine wiring patterns (Kickoff/Playing/GameOver).
  * The team designed the match architecture and implemented the gameplay rules.
  *
- * Example prompt used:
+ * Prompt used:
  * "Review this Match class header. Suggest concise Doxygen comments and highlight common pitfalls
  * when wiring a state machine that owns World + score + timer. Do not change runtime behavior."
  */
@@ -21,10 +21,10 @@
 #include <memory>
 #include <cstdint>
 
-/**
- * @class Match
- * @brief Owns match rules and delegates state-specific behavior to MatchState.
- */
+ /**
+  * @class Match
+  * @brief Owns match rules and delegates state-specific behavior to MatchState.
+  */
 class Match {
 
 public:
