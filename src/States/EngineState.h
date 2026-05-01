@@ -142,8 +142,7 @@ private:
     sf::Texture mBrightnessHighTex;
     sf::Texture mBrightnessMidTex;
     sf::Texture mBrightnessLowTex;
-    //sf::Texture mSettingWords;
-    std::optional<sf::Sprite> mBg;
+	std::optional<sf::Sprite> mBg;
     std::optional<sf::Sprite> mPanel;
     std::optional<sf::Sprite> mExitBtn;
     std::optional<sf::Sprite> mSettingWords;
