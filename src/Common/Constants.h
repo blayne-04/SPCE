@@ -285,7 +285,7 @@ namespace Config {
 	// MATCH RULES & UI
 	// ----------------------------------------------------------------------------
 
-	constexpr float MATCH_DURATION_SECONDS = 01.f;
+	constexpr float MATCH_DURATION_SECONDS = 180.f;
 	constexpr int WIN_GOAL_LIMIT = 5;
 	constexpr float GOAL_REPLAY_DURATION_SECONDS = 1.2f;
 
