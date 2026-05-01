@@ -1,4 +1,21 @@
 #include "World.h"
+
+/**
+ * @file World.cpp
+ * @brief Implementation of the simulation sandbox.
+ *
+ * AI disclosure:
+ * The cow chaos event, guided pass/shot helpers, kickoff restrictions, six-yard
+ * box rules, tackle/steal mechanics, and snapshot production were
+ * generated/revised with help from OpenAI Codex.
+ *
+ * Prompt used:
+ * "Help me implement the World simulation for an SFML soccer game inspired by a
+ * Copa Peru cow invasion. World should own players, ball, goals and cows;
+ * produce GameStatePacket snapshots; enforce football-like rules; and keep
+ * Match responsible for score/timer/state transitions."
+ */
+
 #include "../Common/Constants.h"
 #include "PhysicsEngine.h" // SANTI: interception query for guaranteed pass/shot
 #include <algorithm>  // SANTI: std::clamp

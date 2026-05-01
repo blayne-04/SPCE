@@ -1,5 +1,20 @@
 #pragma once
 
+/**
+ * @file Ball.h
+ * @brief Ball entity with ownership, velocity, cooldown, and guided travel.
+ *
+ * AI disclosure:
+ * The guided-pass/guided-shot travel state was implemented and documented with
+ * help from OpenAI Codex because it is more advanced than typical CPTS 122
+ * object state.
+ *
+ * Prompt used:
+ * "Help me add guaranteed pass and shot behavior to my Ball class. Keep Ball
+ * physics-only, store guided travel state, move from start to endpoint over
+ * time, and assign final possession when travel finishes."
+ */
+
 #include "SFML/Graphics.hpp"
 #include "../Common/Constants.h"
 
@@ -13,6 +28,13 @@
 //        to support World::writeRawState snapshot and prevent garbage data.
 // ============================================================================
 
+/**
+ * @class Ball
+ * @brief Owns ball physics state and possession state.
+ *
+ * Ball does not choose pass targets, shot targets, or interceptions. World and
+ * MatchState decide those rules; Ball executes movement.
+ */
 class Ball : public sf::CircleShape
 {
 public:
@@ -54,13 +76,21 @@ public:
 	// ------------------------------------------------------------------------
 	// PHYSICS & ACTIONS (to be implemented in .cpp)
 	// ------------------------------------------------------------------------
+	/** @brief Apply an explicit velocity vector and clear current owner. */
 	void applyKick(sf::Vector2f direction);
+
+	/** @brief Legacy/default pass impulse helper. */
 	void applyPass();
+
+	/** @brief Legacy/default shot impulse helper. */
 	void applyShot();
+
+	/** @brief Advance cooldowns, guided travel, and velocity-based movement. */
 	void update(const float deltaTime);
 
 	// SANTI: Ball stays physics-only. Caller supplies the endpoint.
 	// This avoids Ball depending on World or PhysicsEngine.
+	/** @brief Kick the ball toward a target point at a requested speed. */
 	void kickToward(const sf::Vector2f& target, float speed);
 
 	// ------------------------------------------------------------------------

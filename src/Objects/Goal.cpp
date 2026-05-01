@@ -1,8 +1,17 @@
+/**
+ * @file Goal.cpp
+ * @brief Goal collision implementation.
+ */
 
 #include "Goal.h"
 #include "../Common/Constants.h"
 
-// SANTI: Manual rect overlap avoids SFML2 vs SFML3 API differences.
+/**
+ * @brief Return true when two SFML rectangles overlap.
+ *
+ * SANTI: Manual rect overlap avoids SFML2 vs SFML3 API differences and keeps
+ * goal scoring independent from a specific SFML rectangle helper name.
+ */
 static bool rectsOverlap(const sf::FloatRect& a, const sf::FloatRect& b) {
 	const float aLeft = a.position.x;
 	const float aTop = a.position.y;
@@ -23,6 +32,9 @@ static bool rectsOverlap(const sf::FloatRect& a, const sf::FloatRect& b) {
 	return true;
 }
 
+/**
+ * @brief Check whether the ball currently overlaps this goal's scoring box.
+ */
 bool Goal::checkBallCollision(const Ball& ball) {
 	const float goalX = (mSide == Config::HOME_TEAM_SIDE) ? Config::LEFT_GOAL_X : Config::RIGHT_GOAL_X;
 

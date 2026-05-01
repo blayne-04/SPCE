@@ -1,4 +1,19 @@
 #include "AIController.h"
+
+/**
+ * @file AIController.cpp
+ * @brief Snapshot-driven soccer AI input generation.
+ *
+ * AI disclosure:
+ * The tactical movement/pass/shot/defense heuristics were generated/revised
+ * with help from OpenAI Codex.
+ *
+ * Prompt used:
+ * "Help me port soccer AI behavior from an older project into my new
+ * host-authoritative SFML game. Use only GameStatePacket data, generate
+ * InputPacket output, avoid Team classes, and keep AI actions fair."
+ */
+
 #include "../Common/Constants.h"
 #include <algorithm> // SANTI 28/04/2026: std::clamp
 #include <cmath>

@@ -1,4 +1,19 @@
 #include "Match.h"
+
+/**
+ * @file Match.cpp
+ * @brief Match referee implementation.
+ *
+ * AI disclosure:
+ * The state-delegation update flow, control switching, and snapshot fill logic
+ * were generated/revised with help from OpenAI Codex.
+ *
+ * Prompt used:
+ * "Help me implement a Match referee for a host-authoritative soccer game.
+ * Match should own World, current MatchState, score, timer, control routing,
+ * and fill GameStatePacket without putting match rules in GameEngine."
+ */
+
 #include <utility> // std::move
 #include <type_traits>
 #include <limits>  // SANTI 28/04/2026: std::numeric_limits

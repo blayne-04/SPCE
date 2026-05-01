@@ -1,3 +1,8 @@
+/**
+ * @file GameEngine.cpp
+ * @brief Main SFML window loop and state-stack implementation.
+ */
+
 #include "GameEngine.h"
 #include "../States/EngineState.h"
 #include "../Common/Constants.h"
@@ -16,15 +21,14 @@ void GameEngine::pushState(std::unique_ptr<EngineState> state) {
 }
 
 void GameEngine::popState() {
-	if (!mStates.empty()) {
-		mStates.pop_back();
-	}
+	if (mStates.empty()) return;
+
+	mStates.pop_back();
 }
 
 void GameEngine::transitionTo(std::unique_ptr<EngineState> state) {
-	if (!mStates.empty()) {
-		mStates.pop_back();
-	}
+	if (!mStates.empty()) mStates.pop_back();
+
 	mStates.push_back(std::move(state));
 }
 
@@ -40,20 +44,20 @@ void GameEngine::run() {
 	sf::Clock clock;
 
 	while (mWindow.isOpen() && !mStates.empty()) {
-		float dt = clock.restart().asSeconds();
+		const float dt = clock.restart().asSeconds();
 
 		processOsEvents();
 
-        // Call tick() on the active state (top of stack)
-        if (!mStates.empty()) {
-            mStates.back()->tick(*this, dt);
-        }
+		// The active state is the top of the stack.
+		if (!mStates.empty()) mStates.back()->tick(*this, dt);
 
-        // Render all states in the stack (for overlay support, e.g., pause menu over game)
-        mWindow.clear();
-        for (auto& state : mStates) {
-            state->render(*this);
-        }
-        mWindow.display();
-    }
+		// Render every state so overlay states, such as pause, can draw on top.
+		mWindow.clear();
+
+		for (auto& state : mStates) {
+			state->render(*this);
+		}
+
+		mWindow.display();
+	}
 }

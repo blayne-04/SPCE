@@ -1,3 +1,8 @@
+/**
+ * @file Player.cpp
+ * @brief Player method implementations.
+ */
+
 #include "Player.h"
 
 // ============================================================================
@@ -17,6 +22,9 @@ void Player::update(float downTime) {
 	(void)downTime;
 }
 
+/**
+ * @brief Legacy action hook kept for API compatibility.
+ */
 void Player::kickBall() {
 	// SANTI: Stub. Kick/pass/shot logic will be implemented via Match/World/Ball
 	// once you port gameplay from the previous project.

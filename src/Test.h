@@ -1,5 +1,14 @@
 #pragma once
 
+/**
+ * @file Test.h
+ * @brief Legacy visual/unit-test helper header.
+ *
+ * SANTI: This file is currently not included by main.cpp or the normal build.
+ * It still references an older EngineState API in several places, so it should
+ * be rewritten before being used as the final PA9 "5 test cases" evidence.
+ */
+
 #include <iostream>
 #include <cassert>
 #include <thread>

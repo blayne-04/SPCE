@@ -1,13 +1,18 @@
 #pragma once
 
-/* MainMenu = 0, SettingsMenu = 1, PlayingMatch = 2 */
+/**
+ * @file Types.h
+ * @brief Small shared enums for application and match state names.
+ */
+
+/** @brief High-level application screen categories. */
 enum class AppState {
 	MainMenu,
 	SettingsMenu,
 	PlayingMatch
 };
 
-/* None = 0, Kickoff = 1, Playing = 2, Goal = 3, GameEnd = 4 */
+/** @brief Possible next match-state requests. */
 enum class NextMatchState {
 	None,
 	Kickoff,
@@ -16,10 +21,8 @@ enum class NextMatchState {
 	GameEnd
 };
 
-/* TEAM1 = 0, TEAM2 = 1 */
+/** @brief Score/team identifiers used by Match. */
 enum class TEAMS {
 	TEAM1 = 0,
 	TEAM2 = 1
 };
-
-
