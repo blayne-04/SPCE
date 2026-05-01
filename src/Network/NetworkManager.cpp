@@ -296,6 +296,18 @@ void NetworkManager::sendPlayerInput(const InputPacket& inputPacket)
 }
 
 // ----------------------------------------------------------------------------
+// HOST SIDE: report whether a remote endpoint has been learned
+// ----------------------------------------------------------------------------
+bool NetworkManager::hasRemoteClient() const
+{
+	// SANTI 30/04/26
+	// UDP does not have a built-in connected/disconnected flag. mRemotePort is
+	// reset to 0 in startHost() and becomes nonzero only after the host receives
+	// a valid JOIN_REQUEST or INPUT packet from the client.
+	return mRemotePort != 0;
+}
+
+// ----------------------------------------------------------------------------
 // CLIENT SIDE: receive snapshots, keep only the newest (by frameNumber)
 // ----------------------------------------------------------------------------
 bool NetworkManager::receiveLatestGameState(GameStatePacket& outState)

@@ -68,6 +68,16 @@ public:
 	void sendPlayerInput(const InputPacket& inputPacket);
 
 	/**
+	 * @brief Return true once this socket knows a remote client endpoint.
+	 *
+	 * SANTI 30/04/26
+	 * UDP has no persistent connection state. For the one-client MVP, the host
+	 * considers the client "connected" after receiving any valid JOIN_REQUEST
+	 * or INPUT packet and storing that sender's IP/port.
+	 */
+	bool hasRemoteClient() const;
+
+	/**
 	 * @brief Client drains state packets and keeps only the newest frame.
 	 * @param outState Replaced by the newest received state.
 	 * @return true if at least one valid state packet was received.

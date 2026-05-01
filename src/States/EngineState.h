@@ -12,15 +12,20 @@
  * Prompt used:
  * "Help wire an SFML game-state stack into a host-authoritative soccer game.
  * HostPlayingState should build FrameInput, update Match, send GameState, and
- * render snapshots. ClientPlayingState should send input and render latest state."
+ * render snapshots. ClientPlayingState should send input and render latest state.
+ * Add a small JoinGameState so users can type the host LAN IP at runtime instead
+ * of editing source code."
  */
 
 #include <SFML/Graphics.hpp>
 #include "../Input/InputHandler.h"
 #include "../Core/Renderer.h"
 #include "../Input/AIController.h"
+#include <array>
+#include <optional>
 #include <stdint.h>
 #include <stdio.h>
+#include <string>
 
 /* Forward declaration */
 class GameEngine;
@@ -32,6 +37,8 @@ class GameEngine;
 class EngineState {
 public:
 	EngineState() = default;
+	virtual ~EngineState() = default;
+
 	/**
 	 * Called once per frame. Handle input and update state logic.
 	 * @param engine - Reference to GameEngine for state transitions and resources
@@ -44,6 +51,46 @@ public:
 	 * @param engine - Reference to GameEngine for accessing window and resources
 	 */
 	virtual void render(GameEngine& engine) = 0;
+};
+
+/**
+ * @class JoinGameState
+ * @brief Runtime IP-entry screen for client LAN play.
+ *
+ * SANTI 30/04/26
+ * AI disclosure: this small usability state was implemented with Codex help
+ * because the architecture/networking already existed and the remaining work
+ * was time-crunch UI plumbing for entering a host IP without editing code.
+ *
+ * Prompt used:
+ * "Add a user-friendly Join Game screen to my SFML state stack. Let the user
+ * type an IPv4 host address at runtime, press Enter to create ClientPlayingState,
+ * press Escape to return to StartMenuState, and keep networking protocol unchanged."
+ */
+class JoinGameState : public EngineState {
+public:
+	JoinGameState();
+	void tick(GameEngine& engine, float dt) override;
+	void render(GameEngine& engine) override;
+
+private:
+	std::string mHostAddressText;
+
+	// SANTI 30/04/26
+	// Polling-state memory. GameEngine does not currently forward TextEntered
+	// events to EngineState, so this state implements simple key-edge detection.
+	std::array<bool, 10> mNumberKeyWasDown{};
+	std::array<bool, 10> mNumpadKeyWasDown{};
+	bool mPeriodKeyWasDown = false;
+	bool mBackspaceKeyWasDown = false;
+	bool mEnterKeyWasDown = false;
+	bool mEscapeKeyWasDown = false;
+
+	void appendDigitIfPressed(int digit);
+	void appendPeriodIfPressed();
+	void deleteLastCharacterIfPressed();
+	bool enterPressedOnce();
+	bool escapePressedOnce();
 };
 
 
@@ -129,9 +176,16 @@ public:
  */
 class ClientPlayingState : public EngineState {
 public:
+	ClientPlayingState();
+	explicit ClientPlayingState(std::string hostAddressText);
 	void tick(GameEngine& engine, float dt) override;
 	void render(GameEngine& engine) override;
 private:
+	// SANTI 30/04/26
+	// Runtime host address entered in JoinGameState. This replaces the old flow
+	// where players had to edit Config::DEFAULT_HOST_ADDRESS in source code.
+	std::string mHostAddressText;
+
 	// SANTI 28/04/2026: Network sockets must be started exactly once per state lifetime.
 	// Client binds to an ephemeral local UDP port so it can receive STATE snapshots.
 	bool mNetworkStarted = false;
