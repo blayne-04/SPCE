@@ -636,8 +636,8 @@ namespace {
 		// Draw both controlled slots because Renderer intentionally does not know
 		// whether it is running on host, client, or single-player. Host controls
 		// Home and client controls Away, so the packet already identifies both.
-		// Single-player can explicitly hide the Away marker through the render()
-		// option because the away team is fully AI-controlled there.
+		// Single-player can explicitly hide the Away marker because the away
+		// team is fully AI-controlled there.
 		const sf::Color homeIndicatorColor(80, 180, 255, 235);
 		const sf::Color awayIndicatorColor(255, 210, 70, 235);
 

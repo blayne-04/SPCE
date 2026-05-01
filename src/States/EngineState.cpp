@@ -244,9 +244,16 @@ void StartMenuState::tick(GameEngine& engine, float dt) {
 			engine.transitionTo(std::make_unique<SinglePlayerPlayingState>());
 		}
 		else if (mBtnHost && isSpriteClicked(*mBtnHost, window)) {
+			// SANTI 30/04/26
+			// Host socket setup belongs in HostPlayingState::tick so the menu
+			// only decides navigation. HostPlayingState also renders the runtime
+			// IP/port instructions for the user.
 			engine.transitionTo(std::make_unique<HostPlayingState>());
 		}
 		else if (mBtnJoin && isSpriteClicked(*mBtnJoin, window)) {
+			// SANTI 30/04/26
+			// JoinGameState lets the user type the host IP at runtime.
+			// This replaces hardcoded LAN addresses such as 10.x.x.x.
 			engine.transitionTo(std::make_unique<JoinGameState>());
 		}
 		else if (mBtnSettings && isSpriteClicked(*mBtnSettings, window)) {
