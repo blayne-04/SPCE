@@ -251,8 +251,10 @@ void SettingsMenuState::updateIcons()
 **************************/
 PauseMenuState::PauseMenuState()
 	: mResumeText(mFont),
-	mQuitText(mFont)
+	
+	mInstructionsText(mFont)
 {
+	mExitTex.loadFromFile("assets/UI/soccer_ui/exit.png");
 	mPanelTex.loadFromFile("assets/UI/soccer_ui/panel.png");
 	mFont.openFromFile("assets/fonts/arial.ttf");
 
@@ -267,25 +269,48 @@ PauseMenuState::PauseMenuState()
 		});
 	mPanel->setScale({ 0.8f, 0.8f });
 
-	mResumeBtn.setSize({ 220.f, 60.f });
+	mInstructionsText.setCharacterSize(18);
+	mInstructionsText.setFillColor(sf::Color::White);
+	mInstructionsText.setLineSpacing(1.05f);
+	mInstructionsText.setString(
+		"		 CONTROLS\n\n"
+		"Move: W, A, S, D\n"
+		"Pass: J\n"
+		"Shoot: K (hold to charge)\n"
+		"Tackle or Steal: L\n"
+		"Switch Defender: I"
+	);
+
+	sf::FloatRect textBounds = mInstructionsText.getLocalBounds();
+	mInstructionsText.setOrigin({
+		textBounds.position.x + textBounds.size.x / 2.f,
+		textBounds.position.y
+		});
+
+	mInstructionsText.setPosition({
+		mPanel->getPosition().x,
+		mPanel->getPosition().y - 130.f
+		});
+
+	mResumeBtn.setSize({ 150.f, 60.f });
 	mResumeBtn.setOrigin({ 110.f, 30.f });
-	mResumeBtn.setPosition({ Config::WINDOW_WIDTH / 2.f, Config::WINDOW_HEIGHT / 2.f - 40.f });
+	mResumeBtn.setPosition({
+		mPanel->getPosition().x + 100.f,
+		mPanel->getPosition().y + 100.f
+		});
 	mResumeBtn.setFillColor(sf::Color(40, 140, 60));
 
-	mQuitBtn.setSize({ 220.f, 60.f });
-	mQuitBtn.setOrigin({ 110.f, 30.f });
-	mQuitBtn.setPosition({ Config::WINDOW_WIDTH / 2.f, Config::WINDOW_HEIGHT / 2.f + 50.f });
-	mQuitBtn.setFillColor(sf::Color(160, 50, 50));
+	mExitBtn.emplace(mExitTex);
+	mExitBtn->setPosition({ 240.f, 330.f });
+	mExitBtn->setScale({ 0.28f, 0.28f });
 
 	mResumeText.setString("RESUME");
 	mResumeText.setCharacterSize(28);
 	mResumeText.setFillColor(sf::Color::White);
-	mResumeText.setPosition({ Config::WINDOW_WIDTH / 2.f - 55.f, Config::WINDOW_HEIGHT / 2.f - 58.f });
-
-	mQuitText.setString("QUIT");
-	mQuitText.setCharacterSize(28);
-	mQuitText.setFillColor(sf::Color::White);
-	mQuitText.setPosition({ Config::WINDOW_WIDTH / 2.f - 35.f, Config::WINDOW_HEIGHT / 2.f + 32.f });
+	mResumeText.setPosition({
+		mResumeBtn.getPosition().x - 90,
+		mResumeBtn.getPosition().y - 18.f
+		});
 }
 
 void PauseMenuState::tick(GameEngine& engine, float dt)
@@ -302,16 +327,20 @@ void PauseMenuState::tick(GameEngine& engine, float dt)
 			return;
 		}
 
-		if (isMouseOver(mQuitBtn.getGlobalBounds(), window)) {
+		if (mExitBtn && isMouseOver(mExitBtn->getGlobalBounds(), window)) {
 			engine.transitionTo(std::make_unique<StartMenuState>());
 			return;
 		}
 	}
 
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
+	bool escapeDown = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape);
+
+	if (escapeDown && !mEscapeWasDown) {
 		engine.popState();
 		return;
 	}
+
+	mEscapeWasDown = escapeDown;
 
 	mMouseWasDown = mouseDown;
 }
@@ -327,10 +356,12 @@ void PauseMenuState::render(GameEngine& engine)
 	/* TODO: Draw pause menu options */
 	if (mPanel) window.draw(*mPanel);
 
+	window.draw(mInstructionsText);
 	window.draw(mResumeBtn);
-	window.draw(mQuitBtn);
+	//window.draw(mQuitBtn);
 	window.draw(mResumeText);
-	window.draw(mQuitText);
+	if (mExitBtn) window.draw(*mExitBtn);
+	
 
 }
 bool PauseMenuState::isMouseOver(const sf::FloatRect& bounds, sf::RenderWindow& window)
@@ -366,9 +397,15 @@ void ClientPlayingState::tick(GameEngine& engine, float dt)
 	}
 
 	/* Check for pause */
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
+	/*if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
+		engine.pushState(std::make_unique<PauseMenuState>());
+	}*/
+	bool pauseKeyDown = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape);
+	if (pauseKeyDown && !mPauseKeyWasDown) {
 		engine.pushState(std::make_unique<PauseMenuState>());
 	}
+
+	mPauseKeyWasDown = pauseKeyDown;
 
 	/* Handshake phase : request player ID if we don't have one yet */
 	if (mMyPlayerID == 255) {

@@ -93,15 +93,19 @@ public:
 	void render(GameEngine& engine) override;
 private:
 	sf::Texture mPanelTex;
-	std::optional<sf::Sprite> mPanel;
+	sf::Texture mExitTex;
 
+	std::optional<sf::Sprite> mPanel;
+	std::optional<sf::Sprite> mExitBtn;
 	sf::Font mFont;
 	sf::RectangleShape mResumeBtn;
 	sf::RectangleShape mQuitBtn;
 	sf::Text mResumeText;
-	sf::Text mQuitText;
+	//sf::Text mQuitText;
 
+	sf::Text mInstructionsText;
 	bool mMouseWasDown = false;
+	bool mEscapeWasDown = false;
 	bool isMouseOver(const sf::FloatRect& bounds, sf::RenderWindow& window);
 };
 
@@ -123,6 +127,7 @@ private:
 	// SANTI 28/04/2026: Once we have at least one STATE snapshot, we route future inputs
 	// using mLatestState.controlledAwayPlayerId so defensive switching works.
 	bool mHaveState = false;
+	bool mPauseKeyWasDown = false;
 };
 
 class HostPlayingState : public EngineState {
