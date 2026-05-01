@@ -5,6 +5,7 @@
 
 #include <SFML/Graphics.hpp>
 #include "Core/GameEngine.h"
+#include "Test.h"
 #include <iostream>
 
 /**
@@ -20,6 +21,10 @@ int main()
 	std::cout << "===================================" << std::endl;
 
 	try {
+#if defined(_DEBUG)
+		Test::runTests();
+#endif
+
 		// Create ONE GameEngine instance for the entire program lifetime
 		GameEngine engine;
 
