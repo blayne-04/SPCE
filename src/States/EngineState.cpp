@@ -437,17 +437,19 @@ void JoinGameState::render(GameEngine& engine) {
 SettingsMenuState::SettingsMenuState()
 {
 	loadTextureBestEffort(mBgTex, "assets/backgrounds/homeMenu.png");
-	loadTextureBestEffort(mPanelTex, "assets/ui/soccer_ui/panel.png");
-	loadTextureBestEffort(mSettingWordsTex, "assets/ui/soccer_ui/settings_wording.png");
-	loadTextureBestEffort(mExitTex, "assets/ui/soccer_ui/exit.png");
+	// SANTI 30/04/26
+	// Use the exact repo folder casing. Windows ignores this, but Linux CI does not.
+	loadTextureBestEffort(mPanelTex, "assets/UI/soccer_ui/panel.png");
+	loadTextureBestEffort(mSettingWordsTex, "assets/UI/soccer_ui/settings_wording.png");
+	loadTextureBestEffort(mExitTex, "assets/UI/soccer_ui/exit.png");
 
-	loadTextureBestEffort(mVolumeHighTex, "assets/ui/soccer_ui/audio_max.png");
-	loadTextureBestEffort(mVolumeMidTex, "assets/ui/soccer_ui/audio_mid.png");
-	loadTextureBestEffort(mVolumeLowTex, "assets/ui/soccer_ui/audio_low.png");
+	loadTextureBestEffort(mVolumeHighTex, "assets/UI/soccer_ui/audio_max.png");
+	loadTextureBestEffort(mVolumeMidTex, "assets/UI/soccer_ui/audio_mid.png");
+	loadTextureBestEffort(mVolumeLowTex, "assets/UI/soccer_ui/audio_low.png");
 
-	loadTextureBestEffort(mBrightnessHighTex, "assets/ui/soccer_ui/brightness_max.png");
-	loadTextureBestEffort(mBrightnessMidTex, "assets/ui/soccer_ui/brightness_mid.png");
-	loadTextureBestEffort(mBrightnessLowTex, "assets/ui/soccer_ui/brightness_low.png");
+	loadTextureBestEffort(mBrightnessHighTex, "assets/UI/soccer_ui/brightness_max.png");
+	loadTextureBestEffort(mBrightnessMidTex, "assets/UI/soccer_ui/brightness_mid.png");
+	loadTextureBestEffort(mBrightnessLowTex, "assets/UI/soccer_ui/brightness_low.png");
 
 	mBg.emplace(mBgTex);
 	mBg->setScale({
@@ -631,7 +633,6 @@ PauseMenuState::PauseMenuState()
 
 void PauseMenuState::tick(GameEngine& engine, float dt)
 {
-	/* TODO: Implement input handling for pause menu */
 	auto& window = engine.getWindow();
 
 	bool mouseDown = sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
@@ -669,7 +670,6 @@ void PauseMenuState::render(GameEngine& engine)
 	sf::RectangleShape overlay(sf::Vector2f(static_cast<float>(Config::WINDOW_WIDTH), static_cast<float>(Config::WINDOW_HEIGHT)));
 	overlay.setFillColor(sf::Color(0, 0, 0, 180));  /* Black with 180 alpha */
 	window.draw(overlay);
-	/* TODO: Draw pause menu options */
 	if (mPanel) window.draw(*mPanel);
 
 	window.draw(mInstructionsText);
