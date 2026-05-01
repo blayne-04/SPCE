@@ -518,5 +518,9 @@ void SinglePlayerPlayingState::render(GameEngine& engine)
 	/* Get current game state and render */
 	GameStatePacket currentState;
 	match.getGameState(currentState);
-	mRenderer.render(window, currentState);
+
+	// SANTI 30/04/26
+	// Single-player controls only the Home side. Hide the Away controlled-player
+	// marker so the player does not think the AI opponent is also user-controlled.
+	mRenderer.render(window, currentState, false);
 }

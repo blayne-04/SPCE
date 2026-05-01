@@ -89,6 +89,7 @@ namespace {
 	static constexpr int kBallIconSheetColumns = 4;
 	static constexpr int kBallIconSheetRows = 2;
 	static constexpr int kBallIconRow = 1; // second row, zero-based
+	static constexpr int kControlledPlayerIndicatorColumn = 0; // first column, zero-based
 	static constexpr int kBallIconFirstColumn = 1; // second column, zero-based
 	static constexpr int kBallIconFrameCount = 3;
 	static constexpr float kBallSecondsPerFrame = 0.075f;
@@ -556,6 +557,110 @@ namespace {
 		return sf::IntRect({ column * frameWidth, kBallIconRow * frameHeight }, { frameWidth, frameHeight });
 	}
 
+	static sf::IntRect controlledPlayerIndicatorTextureRect(int frameWidth, int frameHeight) {
+		// SANTI 30/04/26
+		// You identified Ball_Icons.png row 2, column 1 as a good "controlled
+		// player" marker. Human counting says row 2/column 1; zero-based sheet
+		// coordinates are row 1/column 0.
+		return sf::IntRect(
+			{ kControlledPlayerIndicatorColumn * frameWidth, kBallIconRow * frameHeight },
+			{ frameWidth, frameHeight });
+	}
+
+	static bool validControlledPlayerId(std::uint8_t playerId, const GameStatePacket& gameState) {
+		// SANTI 30/04/26
+		// Packet IDs are uint8_t, so this guard only needs the upper bound.
+		return static_cast<std::size_t>(playerId) < gameState.players.size();
+	}
+
+	static sf::Vector2f controlledIndicatorPositionForPlayer(const PlayerState& playerState) {
+		// SANTI 30/04/26
+		// Put the indicator above the player's head, not on top of the body.
+		// The offset uses gameplay constants so it stays aligned if player size
+		// changes later.
+		return sf::Vector2f(
+			playerState.position.x,
+			playerState.position.y - Config::PLAYER_SIZE - 2.f);
+	}
+
+	static bool drawControlledPlayerIndicator(
+		sf::RenderWindow& window,
+		std::optional<sf::Sprite>& optionalIndicatorSprite,
+		const sf::Texture& ballIconTexture,
+		const GameStatePacket& gameState,
+		std::uint8_t playerId,
+		sf::Color tintColor)
+	{
+		// SANTI 30/04/26
+		// Renderer stays snapshot-only: it uses controlledHomePlayerId and
+		// controlledAwayPlayerId already present in GameStatePacket. This means
+		// networking does not need any new fields for the indicator.
+		if (!optionalIndicatorSprite) return false;
+		if (!validControlledPlayerId(playerId, gameState)) return false;
+
+		const sf::Vector2u sheetSize = ballIconTexture.getSize();
+		const int frameWidth = static_cast<int>(sheetSize.x) / kBallIconSheetColumns;
+		const int frameHeight = static_cast<int>(sheetSize.y) / kBallIconSheetRows;
+		if (frameWidth <= 0) return false;
+		if (frameHeight <= 0) return false;
+
+		const PlayerState& controlledPlayer = gameState.players[playerId];
+		const sf::Vector2f indicatorPosition = controlledIndicatorPositionForPlayer(controlledPlayer);
+
+		optionalIndicatorSprite->setTextureRect(controlledPlayerIndicatorTextureRect(frameWidth, frameHeight));
+		optionalIndicatorSprite->setOrigin({ frameWidth * 0.5f, frameHeight * 0.5f });
+
+		// SANTI 30/04/26
+		// Slightly larger than the ball so it reads as a UI marker, not a second
+		// ball. The texture is tinted by team so both controlled players can be
+		// shown without ambiguity in host/client demos.
+		const float desiredIndicatorDiameter = Config::PLAYER_SIZE * 0.85f;
+		const float scaleX = desiredIndicatorDiameter / static_cast<float>(frameWidth);
+		const float scaleY = desiredIndicatorDiameter / static_cast<float>(frameHeight);
+
+		optionalIndicatorSprite->setScale({ scaleX, scaleY });
+		optionalIndicatorSprite->setColor(tintColor);
+		optionalIndicatorSprite->setPosition(indicatorPosition);
+		window.draw(*optionalIndicatorSprite);
+		return true;
+	}
+
+	static void drawControlledPlayerIndicators(
+		sf::RenderWindow& window,
+		std::optional<sf::Sprite>& optionalIndicatorSprite,
+		const sf::Texture& ballIconTexture,
+		const GameStatePacket& gameState,
+		bool showAwayControlledIndicator)
+	{
+		// SANTI 30/04/26
+		// Draw both controlled slots because Renderer intentionally does not know
+		// whether it is running on host, client, or single-player. Host controls
+		// Home and client controls Away, so the packet already identifies both.
+		// Single-player can explicitly hide the Away marker through the render()
+		// option because the away team is fully AI-controlled there.
+		const sf::Color homeIndicatorColor(80, 180, 255, 235);
+		const sf::Color awayIndicatorColor(255, 210, 70, 235);
+
+		(void)drawControlledPlayerIndicator(
+			window,
+			optionalIndicatorSprite,
+			ballIconTexture,
+			gameState,
+			gameState.controlledHomePlayerId,
+			homeIndicatorColor);
+
+		if (!showAwayControlledIndicator) return;
+		if (gameState.controlledAwayPlayerId == gameState.controlledHomePlayerId) return;
+
+		(void)drawControlledPlayerIndicator(
+			window,
+			optionalIndicatorSprite,
+			ballIconTexture,
+			gameState,
+			gameState.controlledAwayPlayerId,
+			awayIndicatorColor);
+	}
+
 	static void drawFallbackBall(sf::RenderWindow& window, const sf::Vector2f& ballPosition) {
 		// SANTI 30/04/26
 		// Shape fallback keeps the game playable if Ball_Icons.png is missing.
@@ -828,13 +933,19 @@ Renderer::Renderer() {
 
 	// SANTI 30/04/26
 	// Ball_Icons.png is a small icon sheet. The ball frames are on row 2,
-	// columns 2-4 (using human 1-based counting).
+	// columns 2-4 (using human 1-based counting). Row 2, column 1 is reused
+	// as the controlled-player indicator.
 	if (mBallTexture.loadFromFile("assets/textures/Ball_Icons.png")) {
 		mBallSprite.emplace(mBallTexture);
+		mControlledPlayerIndicatorSprite.emplace(mBallTexture);
 	}
 }
 
-void Renderer::render(sf::RenderWindow& window, const GameStatePacket& gameState) {
+void Renderer::render(
+	sf::RenderWindow& window,
+	const GameStatePacket& gameState,
+	bool showAwayControlledIndicator)
+{
 	// A. Draw Background
 	window.setView(window.getDefaultView());
 	if (mBackgroundSprite) window.draw(*mBackgroundSprite);
@@ -925,6 +1036,17 @@ void Renderer::render(sf::RenderWindow& window, const GameStatePacket& gameState
 			FRAME_WIDTH,
 			FRAME_HEIGHT);
 	}
+
+	// 3. Draw controlled-player indicators above the player sprites.
+	// SANTI 30/04/26
+	// These are UI markers only. They come from Ball_Icons.png and use the
+	// controlled player IDs already carried by GameStatePacket.
+	drawControlledPlayerIndicators(
+		window,
+		mControlledPlayerIndicatorSprite,
+		mBallTexture,
+		gameState,
+		showAwayControlledIndicator);
 
 	// C. Draw HUD
 	window.setView(window.getDefaultView());

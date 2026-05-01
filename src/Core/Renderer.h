@@ -39,7 +39,13 @@ public:
     // SANTI 30/04/26
     // Draws one authoritative GameStatePacket snapshot.
     // Renderer does not mutate Match/World; it only consumes packet data.
-    void render(sf::RenderWindow& window, const GameStatePacket& gameState);
+    //
+    // showAwayControlledIndicator lets single-player hide the Away controlled
+    // marker while host/client modes can still show both controlled slots.
+    void render(
+        sf::RenderWindow& window,
+        const GameStatePacket& gameState,
+        bool showAwayControlledIndicator = true);
 
     // SANTI 30/04/26
     // Draws score, clock, and current match-state label over the world view.
@@ -70,6 +76,12 @@ private:
     // Ball icon sheet: used to animate the ball while it is moving.
     sf::Texture mBallTexture;
     std::optional<sf::Sprite> mBallSprite;
+
+    // SANTI 30/04/26
+    // Controlled-player indicator uses the first frame on row 2 of Ball_Icons.png.
+    // It is a separate sprite from mBallSprite so drawing the indicator does not
+    // overwrite the ball sprite's texture rectangle, origin, scale, or position.
+    std::optional<sf::Sprite> mControlledPlayerIndicatorSprite;
 
     // SANTI 30/04/26
     // Player skin animation assets.
