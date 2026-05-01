@@ -44,7 +44,7 @@ Requirements:
 
 Build commands:
 
-    git clone https://github.com/blayne-04/SPCE.git
+    git clone https://github.com/santiago-pelaez/SuperCopaPeruEvolution.git
     cd SPCE
     cmake -S . -B build
     cmake --build build
