@@ -51,7 +51,7 @@ file(GLOB_RECURSE GAME_SOURCES
 add_executable(${PROJECT_NAME} ${GAME_SOURCES})
 
 # 6. Include & Link
-target_include_directories(${PROJECT_NAME} PRIVATE src)
+target_include_directories(${PROJECT_NAME} PRIVATE src tests)
 target_link_libraries(${PROJECT_NAME} PRIVATE 
     SFML::Graphics 
     SFML::Audio 

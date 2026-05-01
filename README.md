@@ -9,9 +9,7 @@ Arcade football with Peruvian chaos, wild momentum, and the occasional cow on th
 
 Super Copa Peru Evolution is a C++ / SFML arcade football game inspired by the spirit of Copa Peru: Peru's famously chaotic, regional, anything-can-happen football competition.
 
-## Screenshot
-
-![Gameplay screenshot](assets/SuperCopaPeruEvolution.png)
+![Gameplay screenshot](docs/media/SuperCopaPeruEvolution.png)
 
 ## Quick Start: How To Play
 
@@ -61,13 +59,15 @@ Run the executable from build/bin/. Assets are copied there by the build.
 
 ## Project Structure
 
-- src/Common: shared constants, packets, and types
-- src/Core: core engine systems and renderer
-- src/Input: player and AI input handling
-- src/Network: host/client UDP networking
-- src/Objects: players, ball, goals
-- src/Simulation: world, match rules, physics helpers
-- src/States: application states (menus, host/client/singleplayer)
+- `src/Common`: shared constants, packets, and types
+- `src/Core`: core engine systems and renderer
+- `src/Input`: player and AI input handling
+- `src/Network`: host/client UDP networking
+- `src/Objects`: players, ball, goals
+- `src/Simulation`: world, match rules, physics helpers
+- `src/States`: application states (menus, host/client/singleplayer)
+- `tests/`: lightweight assignment test header
+- `docs/media/`: screenshots and non-runtime media
 
 ## Development Team
 
