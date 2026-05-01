@@ -1,7 +1,18 @@
+/**
+ * @file main.cpp
+ * @brief Program entry point for Super Copa Peru Evolution.
+ */
+
 #include <SFML/Graphics.hpp>
 #include "Core/GameEngine.h"
 #include <iostream>
 
+/**
+ * @brief Program entry point.
+ *
+ * Creates the single GameEngine instance and runs the main loop until the user
+ * closes the window or an exception occurs.
+ */
 int main()
 {
 	std::cout << "===================================" << std::endl;

@@ -6,6 +6,17 @@ set(CMAKE_MESSAGE_LOG_LEVEL WARNING)
 set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE BOOL "" FORCE)
 
+# ============================================================================
+# MSVC DEBUG INFO FORMAT (SANTI 28/04/2026)
+# ============================================================================
+# Avoid MSVC fatal error C1041 (PDB contention) during parallel builds
+# (commonly triggered by C deps like mbedTLS under Ninja) by using Embedded
+# debug info (Z7) instead of Program Database (Zi) in Debug/RelWithDebInfo.
+if (MSVC)
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:Embedded>")
+endif()
+
+
 project(SPCE LANGUAGES CXX)
 
 # 2. Compiler Settings

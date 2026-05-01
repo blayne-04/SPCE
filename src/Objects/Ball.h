@@ -1,5 +1,20 @@
 #pragma once
 
+/**
+ * @file Ball.h
+ * @brief Ball entity with ownership, velocity, cooldown, and guided travel.
+ *
+ * AI disclosure:
+ * The guided-pass/guided-shot travel state was implemented and documented with
+ * help from OpenAI Codex because it is more advanced than typical CPTS 122
+ * object state.
+ *
+ * Prompt used:
+ * "Help me add guaranteed pass and shot behavior to my Ball class. Keep Ball
+ * physics-only, store guided travel state, move from start to endpoint over
+ * time, and assign final possession when travel finishes."
+ */
+
 #include "SFML/Graphics.hpp"
 #include "../Common/Constants.h"
 
@@ -13,6 +28,13 @@
 //        to support World::writeRawState snapshot and prevent garbage data.
 // ============================================================================
 
+/**
+ * @class Ball
+ * @brief Owns ball physics state and possession state.
+ *
+ * Ball does not choose pass targets, shot targets, or interceptions. World and
+ * MatchState decide those rules; Ball executes movement.
+ */
 class Ball : public sf::CircleShape
 {
 public:
@@ -54,10 +76,46 @@ public:
 	// ------------------------------------------------------------------------
 	// PHYSICS & ACTIONS (to be implemented in .cpp)
 	// ------------------------------------------------------------------------
+	/** @brief Apply an explicit velocity vector and clear current owner. */
 	void applyKick(sf::Vector2f direction);
+
+	/** @brief Legacy/default pass impulse helper. */
 	void applyPass();
+
+	/** @brief Legacy/default shot impulse helper. */
 	void applyShot();
+
+	/** @brief Advance cooldowns, guided travel, and velocity-based movement. */
 	void update(const float deltaTime);
+
+	// SANTI: Ball stays physics-only. Caller supplies the endpoint.
+	// This avoids Ball depending on World or PhysicsEngine.
+	/** @brief Kick the ball toward a target point at a requested speed. */
+	void kickToward(const sf::Vector2f& target, float speed);
+
+	// ------------------------------------------------------------------------
+	// GUIDED TRAVEL (SANTI 28/04/2026)
+	// ------------------------------------------------------------------------
+	// Old-project parity: guaranteed passes/shots are "guided" (lerp along a
+	// segment for a computed duration). During guided travel the ball has no
+	// owner. At the end, the ball is either:
+	// - given to a specified receiver (successful pass / intercepted pass/shot), or
+	// - left loose (e.g. shot reaches the goal target).
+	//
+	// NOTE: The decision of *where* to travel and *who* should receive is NOT
+	// Ball's job. Ball only executes the travel and applies the final owner.
+	bool isGuidedInFlight() const { return mGuided.active; }
+
+	// SANTI 28/04/2026: Clears any in-flight guided travel immediately.
+	// This is required when restarting play (kickoff / goal) so the ball does not
+	// continue "lerping" from an old pass/shot after World::resetKickoff().
+	void cancelGuidedTravel() { mGuided = GuidedTravelState{}; }
+
+	// SANTI 28/04/2026: Starts a guided travel from the ball's current position
+	// to 'end'. Travel time is derived from distance/speed with a minimum
+	// duration. If finalOwnerId >= 0, the ball will be assigned to that player
+	// when the travel completes.
+	void beginGuidedTravel(const sf::Vector2f& end, float travelSpeed, int finalOwnerId);
 
 	// ------------------------------------------------------------------------
 	// VELOCITY GETTER / SETTER (SANTI: added for snapshot)
@@ -72,6 +130,17 @@ private:
 	float mStealCooldown = 0.f;      // Remaining time before next steal attempt (seconds).
 	int mOwnerID = -1;               // Player ID (0-7) currently possessing the ball, -1 = loose.
 	sf::Vector2f mVelocity{ 0.f, 0.f };   // Current velocity (units per second).
+
+	// SANTI 28/04/2026: Guided travel state (pass/shot in flight).
+	struct GuidedTravelState {
+		bool active = false;
+		sf::Vector2f start{ 0.f, 0.f };
+		sf::Vector2f end{ 0.f, 0.f };
+		float durationSec = 0.f;
+		float elapsedSec = 0.f;
+		int finalOwnerId = -1; // -1 means "leave ball loose" when travel ends.
+	};
+	GuidedTravelState mGuided{};
 };
 
 // ============================================================================

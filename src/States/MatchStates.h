@@ -1,4 +1,19 @@
 ﻿#pragma once
+/**
+ * @file MatchStates.h
+ * @brief Polymorphic match-state classes for kickoff, playing, and game over.
+ *
+ * AI disclosure:
+ * The MatchState state-machine structure and kickoff/playing/game-over pipeline
+ * were implemented and documented with help from OpenAI Codex to keep match
+ * rules out of GameEngine and World.
+ *
+ * Prompt used:
+ * "Help me implement OOP match states for my soccer game. Use a MatchState base
+ * class with KickoffState, PlayingState, and GameOverState. Match should
+ * delegate update/onEnter/onExit and expose a packet state ID for snapshots."
+ */
+
 #include "../Common/Packets.h"
 #include <cstdint> // SANTI: for std::uint8_t
 
@@ -8,23 +23,31 @@ class Match;
 /* ========================================= */
 /*              BASE CLASS                   */
 /* ========================================= */
+/**
+ * @class MatchState
+ * @brief Abstract base class for match-rule states.
+ */
 class MatchState {
 public:
 	MatchState() = default;
 
 	virtual ~MatchState() = default;
 
-	// SANTI: Needed so Match can fill GameStatePacket.currentState.
+	/** @brief Numeric state ID copied into GameStatePacket.currentState. */
 	virtual std::uint8_t packetStateId() const = 0;
 
-	/* Contextual update function, called by Match to delegate frame updates to the current state of the program */
-	// SANTI: dt is required for matchTimerSec counting up.
+	/**
+	 * @brief Apply one tick of state-specific match logic.
+	 * @param match Match/referee object that owns World and score/timer state.
+	 * @param frameData Input for every player this tick.
+	 * @param dt Delta time in seconds.
+	 */
 	virtual void update(Match& match, const FrameInput& frameData, float dt) = 0;
 
-	/* Contextual function to be called when entering a new state */
+	/** @brief Hook called immediately after transitioning into this state. */
 	virtual void onEnter(Match& match) = 0;
 
-	/* Contextual function to be called when exiting a state */
+	/** @brief Hook called immediately before transitioning out of this state. */
 	virtual void onExit(Match& match) = 0;
 };
 
@@ -32,6 +55,10 @@ public:
 /*              GAME OVER                    */
 /* ========================================= */
 
+/**
+ * @class GameOverState
+ * @brief Frozen terminal state after match time expires.
+ */
 class GameOverState : public MatchState
 {
 public:
@@ -45,6 +72,10 @@ public:
 /* ========================================= */
 /*                KICKOFF                    */
 /* ========================================= */
+/**
+ * @class KickoffState
+ * @brief Restart state that enforces kickoff placement and opening pass rules.
+ */
 class KickoffState : public MatchState
 {
 public:
@@ -53,11 +84,20 @@ public:
 	void update(Match& match, const FrameInput& frameData, float dt) override;
 	void onEnter(Match& match) override;
 	void onExit(Match& match) override;
+
+private:
+	// SANTI 28/04/2026: Kickoff is not complete until the opening pass finishes.
+	// This mirrors real football: play begins after the ball is played to a teammate.
+	bool mKickoffPassStarted = false;
 };
 
 /* ========================================= */
 /*                PLAYING                    */
 /* ========================================= */
+/**
+ * @class PlayingState
+ * @brief Main simulation state for movement, possession, cows, goals, and timer.
+ */
 class PlayingState : public MatchState
 {
 public:
