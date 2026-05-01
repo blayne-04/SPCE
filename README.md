@@ -23,12 +23,6 @@ Copa Perú is a real football tournament in Peru known for regional identity, pa
 
 ---
 
-## Screenshots
-
-![Screenshot](/assets/to/SuperCopaPeruEvolution.png)
-
----
-
 ## Quick Start: How to Play
 
 **Goal:** Score more goals than the opponent in 3 minutes.
