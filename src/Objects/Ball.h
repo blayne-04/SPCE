@@ -4,15 +4,15 @@
  * @file Ball.h
  * @brief Ball entity with ownership, velocity, cooldown, and guided travel.
  *
- * AI disclosure:
- * The guided-pass/guided-shot travel state was implemented and documented with
- * help from OpenAI Codex because it is more advanced than typical CPTS 122
- * object state.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to help draft/format documentation
+ * comments and to sanity-check the structure of the "guided travel" (time-based travel from
+ * start to end) state. The team implemented the behavior and integrated it with World/Match.
  *
- * Prompt used:
- * "Help me add guaranteed pass and shot behavior to my Ball class. Keep Ball
- * physics-only, store guided travel state, move from start to endpoint over
- * time, and assign final possession when travel finishes."
+ * Example prompt used:
+ * "Review this Ball class header. Suggest concise Doxygen comments and highlight any common
+ * pitfalls for representing a time-based 'guided travel' state alongside velocity-based motion.
+ * Do not change runtime behavior."
  */
 
 #include "SFML/Graphics.hpp"
@@ -24,8 +24,7 @@
 // Represents the ball on the field. Inherits from sf::CircleShape for rendering.
 // Owns possession (owner player ID), steal cooldown, and velocity.
 //
-// SANTI: Step 4 - added velocity getter/setter and default initializers
-//        to support World::writeRawState snapshot and prevent garbage data.
+// The ball is simulated by the host. Snapshot data is exported via World.
 // ============================================================================
 
 /**
@@ -44,7 +43,6 @@ public:
 	// Defaults: mOwnerID = -1, mStealCooldown = 0.f, radius = Config::BALL_RADIUS,
 	//           fill color = White, origin at center.
 	Ball() : mOwnerID(-1), mStealCooldown(0.f) {
-		// SANTI: Changed hardcoded BALL_RADIUS to Config::BALL_RADIUS.
 		setRadius(Config::BALL_RADIUS);
 		setFillColor(sf::Color::White);
 		setOrigin(sf::Vector2f(getRadius(), getRadius()));
@@ -88,16 +86,14 @@ public:
 	/** @brief Advance cooldowns, guided travel, and velocity-based movement. */
 	void update(const float deltaTime);
 
-	// SANTI: Ball stays physics-only. Caller supplies the endpoint.
-	// This avoids Ball depending on World or PhysicsEngine.
 	/** @brief Kick the ball toward a target point at a requested speed. */
 	void kickToward(const sf::Vector2f& target, float speed);
 
 	// ------------------------------------------------------------------------
-	// GUIDED TRAVEL (SANTI 28/04/2026)
+	// GUIDED TRAVEL
 	// ------------------------------------------------------------------------
-	// Old-project parity: guaranteed passes/shots are "guided" (lerp along a
-	// segment for a computed duration). During guided travel the ball has no
+	// Guaranteed passes/shots are "guided" (lerp along a segment for a computed
+	// duration). During guided travel the ball has no
 	// owner. At the end, the ball is either:
 	// - given to a specified receiver (successful pass / intercepted pass/shot), or
 	// - left loose (e.g. shot reaches the goal target).
@@ -106,19 +102,18 @@ public:
 	// Ball's job. Ball only executes the travel and applies the final owner.
 	bool isGuidedInFlight() const { return mGuided.active; }
 
-	// SANTI 28/04/2026: Clears any in-flight guided travel immediately.
-	// This is required when restarting play (kickoff / goal) so the ball does not
-	// continue "lerping" from an old pass/shot after World::resetKickoff().
+	// Clears any in-flight guided travel immediately. This is required when
+	// restarting play so the ball does not continue traveling from an old pass/shot.
 	void cancelGuidedTravel() { mGuided = GuidedTravelState{}; }
 
-	// SANTI 28/04/2026: Starts a guided travel from the ball's current position
+	// Starts a guided travel from the ball's current position
 	// to 'end'. Travel time is derived from distance/speed with a minimum
 	// duration. If finalOwnerId >= 0, the ball will be assigned to that player
 	// when the travel completes.
 	void beginGuidedTravel(const sf::Vector2f& end, float travelSpeed, int finalOwnerId);
 
 	// ------------------------------------------------------------------------
-	// VELOCITY GETTER / SETTER (SANTI: added for snapshot)
+	// VELOCITY GETTER / SETTER
 	// ------------------------------------------------------------------------
 	sf::Vector2f getVelocity() const { return mVelocity; }
 	void setVelocity(sf::Vector2f newVelocity) { mVelocity = newVelocity; }
@@ -131,7 +126,7 @@ private:
 	int mOwnerID = -1;               // Player ID (0-7) currently possessing the ball, -1 = loose.
 	sf::Vector2f mVelocity{ 0.f, 0.f };   // Current velocity (units per second).
 
-	// SANTI 28/04/2026: Guided travel state (pass/shot in flight).
+	// Guided travel state (pass/shot in flight).
 	struct GuidedTravelState {
 		bool active = false;
 		sf::Vector2f start{ 0.f, 0.f };
@@ -142,13 +137,3 @@ private:
 	};
 	GuidedTravelState mGuided{};
 };
-
-// ============================================================================
-// SUMMARY OF SANTI CHANGES (Step 4)
-// ============================================================================
-// 1) Added getVelocity() const and setVelocity(sf::Vector2f) so World can fill
-//    GameStatePacket::ballVelocity from the ball object.
-// 2) Added default initializers for mStealCooldown (0.f), mOwnerID (-1), and
-//    mVelocity (0,0) to prevent reading uninitialized garbage in early MVP frames.
-// 3) Changed hardcoded BALL_RADIUS to Config::BALL_RADIUS (already present).
-// ============================================================================

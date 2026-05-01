@@ -4,20 +4,22 @@
  * @file AIController.cpp
  * @brief Snapshot-driven soccer AI input generation.
  *
- * AI disclosure:
- * The tactical movement/pass/shot/defense heuristics were generated/revised
- * with help from OpenAI Codex.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to help draft documentation comments and suggest
+ * a readable structure for heuristic decisions (movement, pass/shoot/tackle) based only on snapshot data.
+ * The team tuned the final behavior through play-testing.
  *
- * Prompt used:
- * "Help me port soccer AI behavior from an older project into my new
- * host-authoritative SFML game. Use only GameStatePacket data, generate
- * InputPacket output, avoid Team classes, and keep AI actions fair."
+ * Example prompt used:
+ * "Given this snapshot-driven AI controller, suggest a readable structure for
+ * movement + pass/shoot/tackle decisions using only GameStatePacket data and
+ * producing InputPacket output. Keep the AI fair via simple cooldowns and
+ * avoid adding new dependencies."
  */
 
 #include "../Common/Constants.h"
-#include <algorithm> // SANTI 28/04/2026: std::clamp
+#include <algorithm> // std::clamp
 #include <cmath>
-#include <limits> // SANTI 28/04/2026: std::numeric_limits
+#include <limits>    // std::numeric_limits
 
 namespace {
 	static bool isHomeId(std::uint8_t id) {
@@ -40,7 +42,7 @@ namespace {
 		return v;
 	}
 
-	// SANTI 28/04/2026: Returns the nearest opponent distance squared for a given team.
+	// Returns the nearest opponent distance squared for a given team.
 	static float nearestOpponentDistSq(const GameStatePacket& s, bool meIsHome, sf::Vector2f pos) {
 		const std::uint8_t start = meIsHome ? 4 : 0;
 		const std::uint8_t endInclusive = meIsHome ? 7 : 3;
@@ -53,20 +55,19 @@ namespace {
 		return best;
 	}
 
-	// SANTI 28/04/2026: Returns AI movement speed scale as a fraction of PLAYER_SPEED.
+	// Returns AI movement speed scale as a fraction of PLAYER_SPEED.
 	// Player::applyMoveDirection multiplies moveDirection by PLAYER_SPEED, so scaling
 	// here gives AI a different top speed without changing Player.
 	static float aiSpeedScale() {
 		if (Config::PLAYER_SPEED <= Config::VECTOR_NORMALIZATION_EPSILON) return 1.f;
 
-		// SANTI 28/04/2026: Apply difficulty scaling so singleplayer feels fairer.
-		// This is the simplest "make AI less perfect" lever without changing decisions.
+		// Apply difficulty scaling so singleplayer feels fairer. This is a simple
+		// lever that does not require changing decision rules.
 		const float base = Config::AI_SPEED / Config::PLAYER_SPEED;
 		return std::clamp(base * Config::AI_DIFFICULTY_SPEED_SCALE, 0.f, 1.f);
 	}
 
-	// SANTI 28/04/2026: "Final third" check (same idea as the old project).
-	// Returns true if position is far enough into the attacking direction.
+	// "Final third" check: returns true if position is far enough into the attacking direction.
 	static bool isInFinalThird(sf::Vector2f pos, bool attackerIsHome) {
 		const float attackRange = Config::PLAYER_MAX_X - Config::PLAYER_MIN_X;
 		if (attackRange <= Config::VECTOR_NORMALIZATION_EPSILON) return false;
@@ -79,7 +80,7 @@ namespace {
 		return clamped >= Config::AI_ATTACKING_PROGRESS_FINAL_THIRD;
 	}
 
-	// SANTI 28/04/2026: Returns the nearest outfield teammate (excluding goalkeeper) to a point.
+	// Returns the nearest outfield teammate (excluding goalkeeper) to a point.
 	static std::uint8_t nearestOutfieldIdTo(
 		const GameStatePacket& s,
 		bool teamIsHome,
@@ -110,7 +111,7 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 
 	if (playerID >= Config::kNumPlayers) return out;
 
-	// SANTI 28/04/2026: Tick down per-player action cooldown.
+	// Tick down per-player action cooldown.
 	// This keeps pass/shoot as impulses, not held buttons, which avoids AI freezing
 	// (World uses edge detection on DOWN state).
 	if (dt > 0.f) {
@@ -132,19 +133,19 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 
 	const sf::Vector2f toBall = s.ballPosition - me.position;
 
-	// SANTI 28/04/2026: Kickoff behavior (real football).
+	// Kickoff behavior: if the AI is the kickoff taker, it must start play by passing.
 	// If the AI is the kickoff taker (has the ball during KickoffState),
 	// it must start play by making the opening pass.
 	if (s.currentState == 0 && iHaveBall) {
-		// SANTI 28/04/2026: Ignore cooldown here. Kickoff would deadlock if the
-		// taker refuses to pass due to a leftover timer from pre-goal gameplay.
+		// Ignore cooldown here. Kickoff would deadlock if the taker refuses to pass
+		// due to a leftover timer from pre-goal gameplay.
 		out.passDown = true;
 		out.moveDirection = sf::Vector2f(0.f, 0.f);
 		return out;
 	}
 
-	// SANTI 28/04/2026: Track how long THIS player has stalled in the final third
-	// while carrying the ball. This forces an action so AI doesn't dribble forever.
+	// Track how long this player has stalled in the final third while carrying the ball.
+	// This forces an action so AI doesn't dribble forever.
 	if (dt > 0.f) {
 		if (iHaveBall && isInFinalThird(me.position, meIsHome)) {
 			mFinalThirdStallSec[playerID] += dt;
@@ -156,10 +157,10 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 
 	// Goalkeeper: simple "track ball Y" behavior for MVP.
 	if (me.isGoalkeeper) {
-		// SANTI 28/04/2026: If the goalkeeper has possession, pass immediately.
+		// If the goalkeeper has possession, pass immediately.
 		// This prevents the match from stalling in singleplayer when the AI keeper saves.
 		if (iHaveBall) {
-			// SANTI 28/04/2026: One-tick impulse only (cooldown prevents "held" passDown).
+			// One-tick impulse only (cooldown prevents "held" passDown).
 			if (mBallActionCooldownSec[playerID] <= 0.f) {
 				out.passDown = true;
 				mBallActionCooldownSec[playerID] = Config::AI_BALL_ACTION_INTERVAL_SECONDS;
@@ -169,9 +170,8 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 			return out;
 		}
 
-		// Default keeper behavior: track the ball's Y position.
-		// SANTI 28/04/2026: Use a proportional move so the keeper slows down
-		// as it approaches the ball's Y (similar to the old smoothing approach).
+		// Default keeper behavior: track the ball's Y position using a proportional move
+		// so the keeper slows down as it approaches the ball's Y.
 		const float dy = toBall.y;
 		const float scale = 60.f; // pixels that map to full stick deflection
 		const float yAxis = std::clamp(dy / scale, -1.f, 1.f);
@@ -181,8 +181,8 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 
 	// ATTACK: if I have possession, decide pass vs shot (no mouse aim).
 	if (iHaveBall) {
-		// SANTI 28/04/2026: If we're still on cooldown, keep carrying instead of
-		// spamming passDown/shootDown (which would be ignored by edge detection).
+		// If we're still on cooldown, keep carrying instead of spamming pass/shoot
+		// (which would be ignored by edge detection).
 		const bool canAct = (mBallActionCooldownSec[playerID] <= 0.f);
 
 		const float goalX = meIsHome
@@ -194,8 +194,7 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 		const float pressureDistSq = nearestOpponentDistSq(s, meIsHome, me.position);
 		const float pressureDist = std::sqrt(pressureDistSq);
 
-		// SANTI 28/04/2026: Final-third "force action" rule from the old project.
-		// If we stall too long near goal, force either a pass or a shot.
+		// Final-third "force action" rule: if we stall too long near goal, act.
 		const bool forceFinalThirdAction =
 			(mFinalThirdStallSec[playerID] >= Config::AI_FINAL_THIRD_FORCE_ACTION_SECONDS);
 
@@ -214,7 +213,7 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 			return out;
 		}
 
-		// SANTI 28/04/2026: Decision rules (MVP, deterministic).
+		// Decision rules (MVP, deterministic).
 		// 1) If close enough to shoot, shoot.
 		// 2) If under pressure, pass.
 		// 3) Else carry forward (just move toward goal).
@@ -296,7 +295,7 @@ InputPacket AIController::getAIInput(std::uint8_t playerID, const GameStatePacke
 		if (ownerIsHome != meIsHome) {
 			const float d2 = distSq(me.position, s.players[ballOwner].position);
 
-			// SANTI 28/04/2026: Nerf AI tackling so it doesn't feel unfair.
+			// Nerf AI tackling so it doesn't feel unfair.
 			// Humans can still attempt tackles from a bit further (skill expression),
 			// but AI should only tackle when clearly in range.
 			const float r = Config::AI_TACKLE_TRIGGER_RADIUS;

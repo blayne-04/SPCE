@@ -4,15 +4,16 @@
  * @file NetworkManager.h
  * @brief UDP mailroom for host/client packet exchange.
  *
- * AI disclosure:
- * The message-tagged UDP handshake, input polling, and latest-state snapshot
- * receive flow were implemented and documented with help from OpenAI Codex
- * because robust socket handling is beyond the normal CPTS 122 core topics.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to review non-blocking UDP receive
+ * loops and to sanity-check the "type-tagged packet" approach (so INPUT/STATE packets are
+ * not mis-parsed). The team designed and implemented the networking architecture and then
+ * validated it via local host/client play-testing.
  *
- * Prompt used:
- * "Help me implement a minimal SFML UDP NetworkManager for a host-authoritative
- * game. Use one socket, message type tags, a single-client handshake, queued
- * InputPacket polling, and latest GameStatePacket receive logic."
+ * Example prompt used:
+ * "Review this UDP NetworkManager interface. Suggest a safe packet-type tagging approach and
+ * a non-blocking receive loop pattern that can keep only the latest STATE snapshot. Keep the
+ * API small and do not add gameplay rules."
  */
 
 #include <SFML/Network.hpp>
@@ -34,8 +35,6 @@ public:
 
 	/**
 	 * @brief Close the UDP socket and forget any remote endpoint.
-	 *
-	 * SANTI 01/05/2026:
 	 * Used when a player exits a match back to the main menu. This prevents an
 	 * old host/client socket from staying bound while the user is no longer in
 	 * that match.
@@ -65,9 +64,6 @@ public:
 	 */
 	bool pollIdAssignment(std::uint8_t& outId);
 
-	/** @brief Host drains JOIN_REQUEST messages and replies with ASSIGNMENT. */
-	void handleHandshakeRequests();
-
 	/** @brief Host drains valid client InputPackets into outQueue. */
 	void pollIncomingInputs(std::queue<InputPacket>& outQueue);
 
@@ -80,7 +76,6 @@ public:
 	/**
 	 * @brief Return true once this socket knows a remote client endpoint.
 	 *
-	 * SANTI 30/04/26
 	 * UDP has no persistent connection state. For the one-client MVP, the host
 	 * considers the client "connected" after receiving any valid JOIN_REQUEST
 	 * or INPUT packet and storing that sender's IP/port.

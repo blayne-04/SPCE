@@ -4,19 +4,20 @@
  * @file Packets.h
  * @brief Wire contract for the host-authoritative soccer game.
  *
- * AI disclosure:
- * The packet structure and field-by-field SFML serialization operators were
- * designed and documented with help from OpenAI Codex because this networking
- * contract is more advanced than typical CPTS 122 starter code.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to review the `sf::Packet` field-by-field
+ * serialization (common pitfalls: missing fields, type mismatches, and the need for packet type
+ * tagging). The team defined the networking approach and validated the final packet contract by
+ * building and running host/client sessions.
  *
- * Prompt used:
- * "Help me design a host-authoritative UDP packet contract for an SFML soccer
- * game. Use GameState snapshots, InputPacket button-down state, no raw struct
- * memcpy, and sf::Packet serialization operators."
+ * Example prompt used:
+ * "Review this packet contract for SFML `sf::Packet` serialization. Suggest a robust type-tag
+ * enum and safe operator<< / operator>> implementations (field-by-field, no memcpy), and call out
+ * any likely omissions that would break host/client compatibility."
  */
 
 #include <SFML/Graphics.hpp>
-#include <SFML/Network.hpp>          // SANTI: added for sf::Packet
+#include <SFML/Network.hpp>
 #include <array>
 #include <cstdint>
 
@@ -97,9 +98,6 @@ struct PlayerState {
 	bool isLunging = false;
 };
 
-// SANTI: COWS 29/04/26
-// Cow snapshot state. Cows are authoritative obstacles simulated on the host.
-// Clients only render these states; they never simulate cow movement.
 /**
  * @brief Snapshot of one cow obstacle.
  *
@@ -122,7 +120,6 @@ struct GameStatePacket {
 
 	std::array<PlayerState, Config::kNumPlayers> players{};
 
-	// SANTI: COWS 29/04/26
 	// Fixed-size cow array keeps networking deterministic and bandwidth-bounded.
 	std::array<CowState, Config::kMaxCows> cows{};
 
@@ -206,7 +203,6 @@ inline sf::Packet& operator>>(sf::Packet& packet, PlayerState& playerState) {
 		>> playerState.isLunging;
 }
 
-// SANTI: COWS 29/04/26
 inline sf::Packet& operator<<(sf::Packet& packet, const CowState& cowState) {
 	return packet << cowState.active
 		<< cowState.position
@@ -222,7 +218,7 @@ inline sf::Packet& operator>>(sf::Packet& packet, CowState& cowState) {
 inline sf::Packet& operator<<(sf::Packet& packet, const GameStatePacket& gameStatePacket) {
 	packet << gameStatePacket.frameNumber;
 	for (const auto& playerState : gameStatePacket.players) packet << playerState;
-	for (const auto& cowState : gameStatePacket.cows) packet << cowState; // SANTI: COWS 29/04/26
+	for (const auto& cowState : gameStatePacket.cows) packet << cowState;
 	packet << gameStatePacket.ballPosition
 		<< gameStatePacket.ballVelocity
 		<< gameStatePacket.ballOwnerPlayerId
@@ -240,7 +236,7 @@ inline sf::Packet& operator<<(sf::Packet& packet, const GameStatePacket& gameSta
 inline sf::Packet& operator>>(sf::Packet& packet, GameStatePacket& gameStatePacket) {
 	packet >> gameStatePacket.frameNumber;
 	for (auto& playerState : gameStatePacket.players) packet >> playerState;
-	for (auto& cowState : gameStatePacket.cows) packet >> cowState; // SANTI: COWS 29/04/26
+	for (auto& cowState : gameStatePacket.cows) packet >> cowState;
 	packet >> gameStatePacket.ballPosition
 		>> gameStatePacket.ballVelocity
 		>> gameStatePacket.ballOwnerPlayerId

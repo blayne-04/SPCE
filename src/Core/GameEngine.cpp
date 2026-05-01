@@ -51,7 +51,6 @@ void GameEngine::transitionTo(std::unique_ptr<EngineState> state) {
 }
 
 void GameEngine::resetStateStack(std::unique_ptr<EngineState> state) {
-	// SANTI 01/05/2026
 	// Used when leaving an active match. A pause state sits on top of the match
 	// state, so replacing only the top state would leave the old match alive
 	// underneath the menu.
@@ -66,14 +65,12 @@ void GameEngine::resetStateStack(std::unique_ptr<EngineState> state) {
 }
 
 void GameEngine::resetMatch() {
-	// SANTI 01/05/2026
 	// Keep match lifetime centralized in GameEngine, but allow states to request
 	// a clean match when the user starts/restarts/exits a game mode.
 	mMatch.reset();
 }
 
 void GameEngine::resetNetwork() {
-	// SANTI 01/05/2026
 	// NetworkManager is also owned by GameEngine, so a mode exit must explicitly
 	// close the old socket before returning to menus or starting another mode.
 	mNetworkManager.stop();
@@ -127,7 +124,6 @@ void GameEngine::run() {
 
 		// The active state is the top of the stack.
 		if (!mStates.empty()) {
-			// SANTI 01/05/2026
 			// State changes requested during tick() are deferred until tick()
 			// returns. This avoids deleting/replacing the active state while one
 			// of its member functions is still executing.

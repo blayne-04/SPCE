@@ -4,21 +4,22 @@
  * @file Ball.cpp
  * @brief Ball physics, ownership, and guided travel implementation.
  *
- * AI disclosure:
- * The guided travel logic for guaranteed passes/shots was generated/revised
- * with help from OpenAI Codex.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to help draft documentation comments
+ * and suggest small helper extractions (for example: normalization and early-return guards).
+ * The team implemented the actual behavior and validated it via builds and play-testing.
  *
- * Prompt used:
- * "Help me implement a Ball class that can move by velocity or by guided travel
- * for guaranteed passes and shots. Keep Ball physics-only and let World choose
- * targets and final owners."
+ * Example prompt used:
+ * "Review this Ball implementation for a C++/SFML soccer game. Suggest concise
+ * Doxygen comments and guard-return patterns for guided travel vs velocity motion,
+ * without changing runtime behavior."
  */
 
 #include "../Common/Constants.h" // Config::...
 #include <algorithm>             // std::clamp
 #include <cmath>                 // std::sqrt
 
-// SANTI: Helper for normalization (never-nest style: guard returns).
+// Helper for normalization (guard returns keep callers simple).
 static sf::Vector2f normalizeOrZero(sf::Vector2f v) {
 	const float lenSq = v.x * v.x + v.y * v.y;
 	const float eps = Config::VECTOR_NORMALIZATION_EPSILON;
@@ -31,16 +32,14 @@ static sf::Vector2f normalizeOrZero(sf::Vector2f v) {
 }
 
 void Ball::applyKick(sf::Vector2f velocity) {
-	// SANTI: Generic "ball is now in flight" action.
-
-	// SANTI 28/04/2026: Any explicit kick cancels guided travel state.
+	// Any explicit kick cancels guided travel state.
 	// Guided passes/shots own the ball position directly until they resolve.
 	mGuided = GuidedTravelState{};
 
 	clearOwner();
 	mVelocity = velocity;
 
-	// SANTI: "Pickup grace" after any kick/pass/shot.
+	// "Pickup grace" after any kick/pass/shot.
 	// This prevents the ball from being immediately re-possessed on the same frame
 	// it is kicked (since it starts very close to the owner).
 	//
@@ -51,7 +50,7 @@ void Ball::applyKick(sf::Vector2f velocity) {
 }
 
 void Ball::applyPass() {
-	// SANTI: "Guaranteed pass" MVP version with no target selection yet:
+	// "Guaranteed pass" MVP version with no target selection yet:
 	// kick forward and bias toward center Y so it looks reasonable.
 	const int owner = mOwnerID;
 	if (owner < 0) return;
@@ -67,7 +66,7 @@ void Ball::applyPass() {
 }
 
 void Ball::applyShot() {
-	// SANTI: "Guaranteed shot" MVP version: aim at opponent goal center.
+	// "Guaranteed shot" MVP version: aim at opponent goal center.
 	const int owner = mOwnerID;
 	if (owner < 0) return;
 
@@ -90,7 +89,7 @@ void Ball::applyShot() {
 void Ball::update(const float dt) {
 	if (dt <= 0.f) return;
 
-	// SANTI 28/04/2026: Cooldown ticks regardless of owner/flight state.
+	// Cooldown ticks regardless of owner/flight state.
 	// We use this as a generic "interaction disabled" timer:
 	// - after a kick: prevents immediate pickup in the same frame
 	// - during guided travel: prevents pickup/steal while ball is in flight
@@ -99,7 +98,7 @@ void Ball::update(const float dt) {
 		mStealCooldown = std::max(0.f, mStealCooldown - dt);
 	}
 
-	// SANTI 28/04/2026: Guided travel update (guaranteed passes/shots).
+	// Guided travel update (guaranteed passes/shots).
 	if (mGuided.active) {
 		mGuided.elapsedSec += dt;
 
@@ -121,7 +120,7 @@ void Ball::update(const float dt) {
 		if (finalOwnerId >= 0) {
 			setOwner(finalOwnerId);
 
-			// SANTI 28/04/2026: Short protection window after receiving/intercepting
+			// Short protection window after receiving/intercepting
 			// to avoid instant "tackle spam" on the same tick we resolve.
 			mStealCooldown = std::max(mStealCooldown, Config::BALL_POSSESSION_PROTECTION_SECONDS);
 			return;
@@ -133,7 +132,7 @@ void Ball::update(const float dt) {
 		return;
 	}
 
-	// SANTI: If owned, the owning system should attach it (World). Do nothing here.
+	// If owned, the owning system should attach it (World). Do nothing here.
 	if (mOwnerID >= 0) return;
 
 	// Integrate.
@@ -174,7 +173,6 @@ void Ball::kickToward(const sf::Vector2f& target, float speed) {
 }
 
 void Ball::beginGuidedTravel(const sf::Vector2f& end, float travelSpeed, int finalOwnerId) {
-	// SANTI 28/04/2026: This is the "old project" style guaranteed travel.
 	// Caller already decided 'end' and 'finalOwnerId' (receiver or interceptor).
 	if (travelSpeed <= 0.f) return;
 

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
+﻿cmake_minimum_required(VERSION 3.28)
 
 # 1. Global Settings & Silence (Do this FIRST to suppress SFML noise)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
@@ -7,7 +7,7 @@ set(CMAKE_WARN_DEPRECATED OFF CACHE BOOL "" FORCE)
 set(CMAKE_SUPPRESS_DEVELOPER_WARNINGS ON CACHE BOOL "" FORCE)
 
 # ============================================================================
-# MSVC DEBUG INFO FORMAT (SANTI 28/04/2026)
+# MSVC DEBUG INFO FORMAT
 # ============================================================================
 # Avoid MSVC fatal error C1041 (PDB contention) during parallel builds
 # (commonly triggered by C deps like mbedTLS under Ninja) by using Embedded
@@ -79,3 +79,4 @@ endif()
 
 # Set VS Startup Project
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+

@@ -12,7 +12,7 @@
 // ============================================================================
 // Captures raw hardware input (keyboard) and converts it into
 // an InputPacket. This is a pure generator - no networking code here.
-// SANTI: Removed dependency on NetworkManager.h.
+// This module intentionally has no dependency on networking code.
 // ============================================================================
 
 /**

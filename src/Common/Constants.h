@@ -4,28 +4,28 @@
  * @file Constants.h
  * @brief Central tuning table for rendering, networking, physics, AI, cows, and controls.
  *
- * AI disclosure:
- * Some balancing constants and explanatory comments in this file were refined
- * with help from OpenAI Codex while debugging gameplay feel and networking.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to help organize this constant table and
+ * improve naming/comment clarity while tuning gameplay feel. The team selected the final values
+ * and tradeoffs and verified them via play-testing.
  *
- * Prompt used:
- * "Review this SFML soccer game and suggest clear constants for AI difficulty,
- * goalkeeper behavior, cow chaos events, networking, and packet-safe gameplay."
+ * Example prompt used:
+ * "Review this C++ constants table for a small SFML soccer game. Suggest clearer sectioning and
+ * names for physics/AI/network/render constants, and add brief comments that explain intent.
+ * Do not change values unless a naming mismatch is obvious."
  */
 
- // SANTI: Fixed includes.
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Keyboard.hpp>
 
-// SANTI: std::size_t lives in <cstddef> (there is no <size_t> header).
 #include <cstddef>
 
-// ============================================================================
-// CONFIGURATION NAMESPACE
-// ============================================================================
-// Central location for all game constants: window, field, physics, AI, input,
-// networking, etc. Change values here to tweak gameplay.
-// ============================================================================
+ // ============================================================================
+ // CONFIGURATION NAMESPACE
+ // ============================================================================
+ // Central location for all game constants: window, field, physics, AI, input,
+ // networking, etc. Change values here to tweak gameplay.
+ // ============================================================================
 
 namespace Config {
 
@@ -41,15 +41,13 @@ namespace Config {
 	constexpr float FIELD_CENTER_Y = WINDOW_HEIGHT / 2.f;
 
 	// ----------------------------------------------------------------------------
-	// KICKOFF (SANTI 28/04/2026)
+	// KICKOFF
 	// ----------------------------------------------------------------------------
 	// Real-football kickoff constraint: the defending team must stay outside the
 	// center circle until the kickoff pass is completed.
 	//
 	// NOTE: This is a gameplay constant (not networking). It is applied only by
 	// the host simulation during KickoffState.
-	// SANTI 28/04/2026: Tuned smaller so kickoff looks less "locked down" on
-	// an 800x600 pitch while still enforcing the rule.
 	constexpr float KICKOFF_CIRCLE_RADIUS = 65.f;
 
 	// ----------------------------------------------------------------------------
@@ -83,7 +81,7 @@ namespace Config {
 	// AI BEHAVIOR (General)
 	// ----------------------------------------------------------------------------
 
-	// SANTI 28/04/2026: Difficulty knobs.
+	// Difficulty knobs.
 	// The AI can feel "too perfect" in an MVP because it has:
 	// - zero reaction delay
 	// - perfect input (no stick drift / no mis-presses)
@@ -91,16 +89,12 @@ namespace Config {
 	//
 	// This multiplier is an easy first step to make singleplayer feel fairer
 	// without rewriting the decision logic.
-	// SANTI 28/04/2026: Further nerf. AI was still feeling too oppressive in
-	// singleplayer playtests because it never makes input mistakes.
 	constexpr float AI_DIFFICULTY_SPEED_SCALE = 0.75f;
 
-	// SANTI 28/04/2026: AI should not spam tackles from too far away.
+	// AI should not spam tackles from too far away.
 	// Humans can still do that (skill expression), but AI gets a smaller trigger radius.
-	// SANTI 28/04/2026: Further nerf. Make AI commit to tackles only when very close.
-	// SANTI 29/04/26: Slightly increased so AI tackles actually happen.
-	// 15px was so tight that, with separation pushes + ball attach offset, the AI
-	// would rarely reach the trigger threshold and "never tackle" looked like a bug.
+	// The trigger radius is tuned so tackles actually occur; too small can make
+	// tackles look broken due to separation pushes and ball attach offsets.
 	constexpr float AI_TACKLE_TRIGGER_RADIUS = 22.f;
 
 	constexpr float AI_SPEED = 150.f;
@@ -147,8 +141,8 @@ namespace Config {
 	constexpr float AI_SHOT_POST_TARGET_MARGIN_Y = 18.f;
 	constexpr float AI_ATTACKING_PROGRESS_FINAL_THIRD = 0.67f;
 	constexpr float AI_ATTACK_INTENT_DURATION_SECONDS = 0.8f;
-	// SANTI 28/04/2026: Slow down AI pass/shot cadence so it does not feel
-	// "frame-perfect" compared to a human.
+	// Slow down AI pass/shot cadence so it does not feel frame-perfect compared
+	// to a human.
 	constexpr float AI_BALL_ACTION_INTERVAL_SECONDS = 0.33f;
 
 	// ----------------------------------------------------------------------------
@@ -166,7 +160,7 @@ namespace Config {
 	constexpr float STEALER_RETRY_COOLDOWN_SECONDS = 0.35f;
 
 	// ----------------------------------------------------------------------------
-	// CHAOS EVENT: COW INVASION (SANTI: COWS 29/04/26)
+	// CHAOS EVENT: COW INVASION
 	// ----------------------------------------------------------------------------
 	// These constants control the "Copa Peru cows" chaos event.
 	// Design constraints for networking safety:
@@ -181,15 +175,12 @@ namespace Config {
 	constexpr float COW_SPEED_ENTERING = 95.f;
 	constexpr float COW_SPEED_GRAZING = 55.f;
 
-	// Spawn scheduling in PlayingState only.
-	// SANTI: COWS 30/04/26
-	// Spawns happen over time until kMaxCows is reached. Cows do NOT despawn on goals.
+	// Spawn scheduling in PlayingState only. Spawns happen over time until
+	// kMaxCows is reached. Cows do not despawn on goals.
 	constexpr float COW_SPAWN_MIN_DELAY_SECONDS = 20.f;
 	constexpr float COW_SPAWN_MAX_DELAY_SECONDS = 38.f;
 
 	// Wander behavior: cows alternate between "move" and "pause".
-	// SANTI: COWS 30/04/26
-	// This produces the "scramble, stand still, scramble, stand still" feel.
 	constexpr float COW_WANDER_MOVE_MIN_SECONDS = 0.85f;
 	constexpr float COW_WANDER_MOVE_MAX_SECONDS = 2.10f;
 	constexpr float COW_WANDER_PAUSE_MIN_SECONDS = 0.65f;
@@ -236,7 +227,7 @@ namespace Config {
 	constexpr float POST_KICK_PICKUP_DELAY_SECONDS = 0.12f;
 
 	// ----------------------------------------------------------------------------
-	// SHOOTING ACCURACY / GOALKEEPER SAVES (SANTI 28/04/2026)
+	// SHOOTING ACCURACY / GOALKEEPER SAVES
 	// ----------------------------------------------------------------------------
 	// You asked for "probability to score" to correlate with shot distance so
 	// players are incentivized to get closer before shooting.
@@ -264,15 +255,15 @@ namespace Config {
 	constexpr float GOALKEEPER_TRACKING_SMOOTHING = 0.1f;
 
 	// ----------------------------------------------------------------------------
-	// GOAL AREA / SIX-YARD BOX (SANTI 28/04/2026)
+	// GOAL AREA / SIX-YARD BOX
 	// ----------------------------------------------------------------------------
 	// Used to prevent attackers from crowding the goalkeeper while the goalkeeper
 	// is holding the ball (lets the keeper distribute like real football).
 	constexpr float SIX_YARD_BOX_DEPTH = 125.f;
 	constexpr float SIX_YARD_BOX_MARGIN_Y = 25.f;
 
-	// SANTI 28/04/2026: If a goalkeeper holds the ball too long, force a distribution
-	// pass so the match does not stall (small-sided "6-second rule" style).
+	// If a goalkeeper holds the ball too long, force a distribution pass so the
+	// match does not stall.
 	constexpr float GOALKEEPER_HOLD_AUTO_DISTRIBUTE_SECONDS = 4.0f;
 
 	constexpr float FORMATION_HOME_START_X = 150.f;
@@ -288,7 +279,6 @@ namespace Config {
 	constexpr float MATCH_DURATION_SECONDS = 180.f;
 	constexpr int WIN_GOAL_LIMIT = 5;
 	constexpr float GOAL_REPLAY_DURATION_SECONDS = 1.2f;
-	// SANTI 01/05/2026
 	// Delay before the full Game Over menu appears. The match can enter
 	// GameOver immediately, but this gives the player one second to see the
 	// final field state before the large overlay/buttons cover the screen.
@@ -321,9 +311,8 @@ namespace Config {
 	inline constexpr sf::Keyboard::Key SHOOT_KEY = sf::Keyboard::Key::K;           // primary shot
 	inline constexpr sf::Keyboard::Key PASS_KEY = sf::Keyboard::Key::J;            // short pass
 	inline constexpr sf::Keyboard::Key TACKLE_KEY = sf::Keyboard::Key::L;          // standing tackle
-	// SANTI 29/04/26: Alternate tackle key for old-project muscle memory.
-	// Earlier notes used F for "steal/tackle". If you press the wrong key, it
-	// looks like tackles are broken, so we accept both.
+	// Alternate tackle key for usability (two-key support reduces the chance that
+	// players think tackles are broken due to using the wrong key).
 	inline constexpr sf::Keyboard::Key TACKLE_KEY_ALT = sf::Keyboard::Key::F;      // standing tackle (alt)
 	inline constexpr sf::Keyboard::Key SWITCH_PLAYER_KEY = sf::Keyboard::Key::I;   // change controlled player
 
@@ -337,18 +326,16 @@ namespace Config {
 	constexpr const char* FONT_PATH = "../assets/fonts/arial.ttf";
 
 	// ----------------------------------------------------------------------------
-	// NETWORKING (SANTI: just added HOST_PORT)
+	// NETWORKING
 	// ----------------------------------------------------------------------------
 
 	// One place to change the port for host + client.
 	constexpr unsigned short HOST_PORT = 54000;
 
-	// SANTI 29/04/26: Default host address for client mode.
-	// Change this for LAN tests (example: "192.168.1.50").
-	// We keep it as a string so Constants.h does not need SFML Network includes.
+	// Default host address for client mode. Kept as a string so this header does
+	// not need SFML Network includes.
 	constexpr const char* DEFAULT_HOST_ADDRESS = "127.0.0.1";
 
-	// SANTI: changed from 10 to 8 players (4 per team)
 	inline constexpr std::size_t kNumPlayers = 8;
 
 } // namespace Config

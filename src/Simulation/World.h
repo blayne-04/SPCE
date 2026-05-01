@@ -4,17 +4,16 @@
  * @file World.h
  * @brief Owns the simulation sandbox: players, ball, goals, cows, and pitch bounds.
  *
- * AI disclosure:
- * The snapshot production, guided pass/shot helpers, cow chaos event, kickoff
- * restrictions, six-yard box rules, and tackle/steal mechanics were implemented
- * and documented with help from OpenAI Codex because they go beyond typical
- * CPTS 122 class design.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to help draft/format documentation comments
+ * and to propose a clean, readable public API boundary for World (object ownership + mechanics)
+ * vs Match/MatchState (rules + transitions). The team implemented the simulation behavior and
+ * validated it through play-testing.
  *
- * Prompt used:
- * "Help me implement the World sandbox for a host-authoritative SFML soccer
- * game. World should own players, ball, goals, cows, kickoff restrictions,
- * possession helpers, cow collisions, and write a GameStatePacket snapshot
- * without owning score/timer/match rules."
+ * Example prompt used:
+ * "Review this World class header for a C++/SFML soccer game. Suggest concise
+ * Doxygen comments and a clear separation of responsibilities between World
+ * (object ownership + mechanics) and Match/MatchState (rules + transitions)."
  */
 
 #include "../Objects/Goal.h"
@@ -22,7 +21,7 @@
 #include "../Objects/Player.h"
 #include "../Common/Packets.h"
 #include <array>
-#include <cstdint> // SANTI: COWS 29/04/26
+#include <cstdint>
 
 // ============================================================================
 // WORLD
@@ -30,8 +29,7 @@
 // The "sandbox" that owns all game objects (players, ball, goals, pitch bounds).
 // Does NOT contain match rules (score, timer, state machine). That is Match's job.
 //
-// SANTI: Step 4 deliverable - World now holds the raw state and can produce
-//        a GameStatePacket snapshot without any match logic.
+// World can produce a GameStatePacket snapshot without owning match rules.
 // ============================================================================
 
 /**
@@ -47,13 +45,11 @@ public:
 	// CONSTRUCTION & RESET
 	// ------------------------------------------------------------------------
 
-	// SANTI: Declare explicitly because we define it in World.cpp (MSVC requires this).
 	/** @brief Construct and initialize the pitch, goals, ball, players, and cows. */
 	World();
 
-	// SANTI: Deterministic reset for kickoff.
-	//        Resets all objects to their initial positions (home/away formations).
-	// SANTI 28/04/2026: kickoffTeamSide determines which team starts with the ball:
+	// Deterministic reset for kickoff.
+	// kickoffTeamSide determines which team starts with the ball:
 	// - Config::HOME_TEAM_SIDE -> player 0 starts on the center spot
 	// - Config::AWAY_TEAM_SIDE -> player 4 starts on the center spot
 	/**
@@ -66,9 +62,6 @@ public:
 	// SNAPSHOT PRODUCTION (Step 4 deliverable)
 	// ------------------------------------------------------------------------
 
-	// SANTI: Fill snapshot fields derived from World objects.
-	//        Copies current player states, ball state, and pitch bounds into 'out'.
-	//        Called by Match::getGameState() each tick.
 	/**
 	 * @brief Copy World-owned object state into a GameStatePacket.
 	 * @param out Snapshot to fill.
@@ -92,11 +85,11 @@ public:
 	const Ball& ball() const { return mBall; }
 
 
-	// SANTI: Step 5 helper. Moves all players based on FrameInput.
+	/** @brief Move all players based on a full-frame input snapshot. */
 	void applyFrameMovement(const FrameInput& frameData, float dt);
 
 	// ------------------------------------------------------------------------
-	// POSSESSION MECHANICS (SANTI: Step 6 gameplay wiring)
+	// POSSESSION / INTERACTION MECHANICS
 	// ------------------------------------------------------------------------
 	// These functions mutate World-owned objects (players + ball) but do NOT
 	// change match rules (score, timer, state transitions). That separation
@@ -104,82 +97,94 @@ public:
 	// - World is the sandbox/arena and owns objects.
 	// - MatchState decides WHEN to call these mechanics based on game rules.
 
-	// SANTI: If the ball has an owner, attach it to the owner's position.
-	// This makes "possession" a consistent physical representation.
+	/** @brief If the ball has an owner, attach it to the owner's position. */
 	void attachBallToOwnerIfAny();
 
-	// SANTI: If the ball is loose and a player is close enough, assign ownership.
-	// This is the MVP version of "ball pickup / interception".
+	/** @brief If the ball is loose and a player is close enough, assign ownership. */
 	void tryPickupLooseBall(float pickupRadius);
 
-	// SANTI 28/04/2026: Resolve tackle/steal attempts against the current ball owner.
-	// This is the simplified port of the old project's PossessionResolver/StealResolver:
-	// - Only the host simulation decides steals.
-	// - Uses FrameInput.tackleDown as the trigger.
-	// - No Team class: team membership is derived from player ID ranges.
-	//
-	// Call site: PlayingState::update, after movement + attachment, before pass/shot.
+	/**
+	 * @brief Resolve tackle/steal attempts against the current ball owner.
+	 *
+	 * Notes:
+	 * - Only the host simulation decides steals.
+	 * - Uses FrameInput.tackleDown as the trigger.
+	 * - Team membership is derived from player ID ranges (0-3 home, 4-7 away).
+	 *
+	 * Call site: PlayingState::update, after movement + attachment, before pass/shot.
+	 */
 	void resolveTackleSteals(const FrameInput& frameData, float dt);
 
-	// SANTI 28/04/2026: Goalkeeper holding protection.
-	// When the ball is owned by a goalkeeper, NO other player (teammate or opponent)
-	// is allowed to enter that goalkeeper's six-yard box. This keeps distribution
-	// playable and avoids "tackle spam" and weird clustering behind the keeper.
-	//
-	// Call site: PlayingState::update, after movement and after ball attachment.
+	/**
+	 * @brief Restrict player positions while a goalkeeper is holding the ball.
+	 *
+	 * When the ball is owned by a goalkeeper, no other player (teammate or opponent)
+	 * is allowed to enter that goalkeeper's six-yard box. This keeps distribution
+	 * playable and avoids clustering behind the keeper.
+	 */
 	void enforceGoalkeeperSixYardBoxProtection();
 
-	// SANTI 28/04/2026: Hard rule: no players should ever be able to stand "inside"
-	// the goal mouth (inside the net area). This was a visible issue in playtests:
-	// teammates (and sometimes opponents) could drift into the goal rectangle,
-	// which does not make football sense and breaks immersion.
-	//
-	// This is enforced for BOTH goals, for BOTH teams, every tick.
-	// Call site: MatchStates (KickoffState + PlayingState), after movement/separation.
+	/**
+	 * @brief Enforce that no players can stand inside the goal mouth (net area).
+	 *
+	 * This is enforced for both goals and for both teams each tick.
+	 */
 	void enforceNoPlayersInsideGoalMouth();
 
-	Goal& homeGoal() { return mHomeGoal; }          // SANTI
-	Goal& awayGoal() { return mAwayGoal; }          // SANTI
-	const Goal& homeGoal() const { return mHomeGoal; } // SANTI
-	const Goal& awayGoal() const { return mAwayGoal; } // SANTI
+	/** @brief Mutable accessor for the left goal (home team defends). */
+	Goal& homeGoal() { return mHomeGoal; }
+	/** @brief Mutable accessor for the right goal (away team defends). */
+	Goal& awayGoal() { return mAwayGoal; }
+	/** @brief Const accessor for the left goal (home team defends). */
+	const Goal& homeGoal() const { return mHomeGoal; }
+	/** @brief Const accessor for the right goal (away team defends). */
+	const Goal& awayGoal() const { return mAwayGoal; }
 
-	// SANTI: "Guaranteed pass" helper used by PlayingState when the owner presses passDown.
-	// World computes a simple intended target and then applies a PhysicsEngine interception
-	// query to potentially shorten the kick if a defender blocks the corridor.
+	/**
+	 * @brief Start a guided pass using an interception corridor query.
+	 *
+	 * World computes an intended target and uses PhysicsEngine geometry to shorten
+	 * the kick if a defender blocks the corridor.
+	 */
 	void kickGuaranteedPassWithInterception(int ownerId);
 
-	// SANTI: "Guaranteed shot" helper used by PlayingState when the owner presses shootDown.
-	// World aims at opponent goal center and applies the same interception query idea.
+	/** @brief Start a guided shot using an interception corridor query. */
 	void kickGuaranteedShotWithInterception(int ownerId);
 
 	// ------------------------------------------------------------------------
-	// KICKOFF RULES (SANTI 28/04/2026)
+	// KICKOFF RULES
 	// ------------------------------------------------------------------------
 	// The match is in KickoffState until the kicking team completes an opening pass.
 	// During this phase, kickoff placement rules are enforced:
 	// - Every non-kicker player stays in their own half (cannot cross midfield)
 	// - Every non-kicker player stays outside the kickoff circle
 	//
-	// KickoffState calls these helpers to keep MatchStates.cpp readable.
+	/** @brief Enforce kickoff constraints on the defending team. */
 	void enforceKickoffDefenderRestrictions(int kickoffTeamSide);
 
-	// SANTI 28/04/2026: Starts the kickoff opening pass (no interception query).
-	// This mirrors real football: opponents cannot challenge inside the kickoff circle.
-	// The ball will be assigned to the receiver only when the guided travel completes.
+	/**
+	 * @brief Start the kickoff opening pass (no interception query).
+	 *
+	 * Opponents cannot challenge inside the kickoff circle. The ball is assigned to
+	 * the receiver only when the guided travel completes.
+	 */
 	void kickKickoffPassToTeammate(int kickoffOwnerId);
 
-	// SANTI 28/04/2026: Host-side input edge helpers.
-	// Packets carry DOWN state; host computes "pressed this frame" by comparing
-	// against the previous tick's DOWN state for that same player.
-	//
-	// IMPORTANT: Call commitActionButtonHistory(frameData) once per tick (PlayingState)
-	// so edges are computed relative to the immediately previous frame.
+	/**
+	 * @brief Host-side input edge helpers.
+	 *
+	 * Packets carry DOWN state; the host computes "pressed this frame" edges by
+	 * comparing against the previous tick's DOWN state for the same player.
+	 *
+	 * Call commitActionButtonHistory(frameData) once per tick so edges are computed
+	 * relative to the immediately previous frame.
+	 */
 	bool isPassPressed(const FrameInput& frameData, int playerId) const;
 	bool isShootPressed(const FrameInput& frameData, int playerId) const;
 	void commitActionButtonHistory(const FrameInput& frameData);
 
 	// ------------------------------------------------------------------------
-	// CHAOS EVENT: COWS (SANTI: COWS 29/04/26)
+	// CHAOS EVENT: COWS
 	// ------------------------------------------------------------------------
 	// Host-only simulation of the "Copa Peru cows" chaos event.
 	// Clients never simulate cows; they render CowState from the packet.
@@ -204,24 +209,24 @@ private:
 	// MEMBER VARIABLES (verbose names explain ownership)
 	// ------------------------------------------------------------------------
 
-	// SANTI: Array of all 8 players (4 home, 4 away). Index 0-3 = Home, 4-7 = Away.
+	// Array of all 8 players (4 home, 4 away). Index 0-3 = Home, 4-7 = Away.
 	std::array<Player, Config::kNumPlayers> mPlayers{};
 
-	// SANTI: The single ball on the pitch.
+	// The single ball on the pitch.
 	Ball mBall{};
 
-	// SANTI: Left goal (Home team defends this).
+	// Left goal (Home team defends this).
 	Goal mHomeGoal{};
 
-	// SANTI: Right goal (Away team defends this).
+	// Right goal (Away team defends this).
 	Goal mAwayGoal{};
 
-	// SANTI: Playable field boundaries (same as Config::WINDOW_WIDTH/HEIGHT).
-	//        Stored here to be copied into GameStatePacket.
+	// Playable field boundaries (same as Config::WINDOW_WIDTH/HEIGHT).
+	// Stored here to be copied into GameStatePacket.
 	sf::FloatRect mPitchBounds{};
 
 	// ------------------------------------------------------------------------
-	// COWS (SANTI: COWS 29/04/26)
+	// COW RUNTIME STATE (host-authoritative)
 	// ------------------------------------------------------------------------
 	// We keep cow simulation state inside World so the host remains authoritative.
 	// Networking stays simple by exporting a fixed-size array of CowState snapshots.
@@ -230,7 +235,6 @@ private:
 		sf::Vector2f position{ 0.f, 0.f };
 		sf::Vector2f velocity{ 0.f, 0.f };
 		sf::Vector2f target{ 0.f, 0.f };
-		// SANTI: COWS 30/04/26
 		// Phase timer is reused for:
 		// - how long the cow keeps moving before pausing
 		// - how long the cow pauses before picking a new target
@@ -245,31 +249,14 @@ private:
 
 	std::array<CowRuntime, Config::kMaxCows> mCows{};
 
-	// SANTI: COWS 30/04/26
 	// Countdown to spawn the NEXT cow. Once kMaxCows are active, no more spawns happen.
 	float mCowNextSpawnCountdownSec = 0.f;
 
-	// SANTI 28/04/2026: Simple per-player retry cooldown to avoid constant steal spam.
+	// Simple per-player retry cooldown to avoid constant steal spam.
 	// Indexed by player ID (0-7). Counts down in seconds.
 	std::array<float, Config::kNumPlayers> mStealRetryCooldownSec{};
 
-	// SANTI 28/04/2026: Per-player DOWN-state history used to compute edges.
+	// Per-player DOWN-state history used to compute edges.
 	std::array<bool, Config::kNumPlayers> mWasPassDown{};
 	std::array<bool, Config::kNumPlayers> mWasShootDown{};
 };
-
-// ============================================================================
-// SUMMARY OF SANTI CHANGES (Step 4)
-// ============================================================================
-// 1. Turned World from empty stub into actual object owner.
-// 2. Added ownership members:
-//      - mPlayers (array of 8 players)
-//      - mBall
-//      - mHomeGoal, mAwayGoal
-//      - mPitchBounds
-// 3. Added Step 4 API:
-//      - World() constructor (defined in World.cpp)
-//      - resetKickoff() - deterministic initialization
-//      - writeRawState() - produces snapshot without match logic
-// 4. Added simple accessors players() and ball() for Step 5/Match/States.
-// ============================================================================

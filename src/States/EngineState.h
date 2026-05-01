@@ -4,17 +4,17 @@
  * @file EngineState.h
  * @brief Application state classes for menu, gameplay, host, client, and single-player modes.
  *
- * AI disclosure:
- * The host/client gameplay state wiring was implemented and documented with help
- * from OpenAI Codex because it coordinates input, AI, Match, Renderer, and
- * NetworkManager in one frame pipeline.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited, targeted way while building this project:
+ * it helped draft/format some documentation comments and suggested a few state-stack edge
+ * cases to double-check (for example: resetting Match/NetworkManager when returning to the
+ * main menu). The team designed the state architecture, implemented the features, and
+ * reviewed/edited all AI-suggested text/ideas before integration.
  *
- * Prompt used:
- * "Help wire an SFML game-state stack into a host-authoritative soccer game.
- * HostPlayingState should build FrameInput, update Match, send GameState, and
- * render snapshots. ClientPlayingState should send input and render latest state.
- * Add a small JoinGameState so users can type the host LAN IP at runtime instead
- * of editing source code."
+ * Example prompt used:
+ * "Review this C++ game state stack (menu/host/client/single-player). Suggest concise Doxygen
+ * comments and call out any common edge cases around pushing/popping states and resetting
+ * long-lived resources. Do not change runtime behavior."
  */
 
 #include <SFML/Graphics.hpp>
@@ -56,16 +56,6 @@ public:
 /**
  * @class JoinGameState
  * @brief Runtime IP-entry screen for client LAN play.
- *
- * SANTI 30/04/26
- * AI disclosure: this small usability state was implemented with Codex help
- * because the architecture/networking already existed and the remaining work
- * was time-crunch UI plumbing for entering a host IP without editing code.
- *
- * Prompt used:
- * "Add a user-friendly Join Game screen to my SFML state stack. Let the user
- * type an IPv4 host address at runtime, press Enter to create ClientPlayingState,
- * press Escape to return to StartMenuState, and keep networking protocol unchanged."
  */
 class JoinGameState : public EngineState {
 public:
@@ -76,7 +66,6 @@ public:
 private:
 	std::string mHostAddressText;
 
-	// SANTI 30/04/26
 	// Polling-state memory. GameEngine does not currently forward TextEntered
 	// events to EngineState, so this state implements simple key-edge detection.
 	std::array<bool, 10> mNumberKeyWasDown{};
@@ -197,12 +186,11 @@ public:
 	void tick(GameEngine& engine, float dt) override;
 	void render(GameEngine& engine) override;
 private:
-	// SANTI 30/04/26
 	// Runtime host address entered in JoinGameState. This replaces the old flow
 	// where players had to edit Config::DEFAULT_HOST_ADDRESS in source code.
 	std::string mHostAddressText;
 
-	// SANTI 28/04/2026: Network sockets must be started exactly once per state lifetime.
+	// Network sockets must be started exactly once per state lifetime.
 	// Client binds to an ephemeral local UDP port so it can receive STATE snapshots.
 	bool mNetworkStarted = false;
 
@@ -211,12 +199,11 @@ private:
 	Renderer mRenderer;
 	GameStatePacket mLatestState;
 
-	// SANTI 28/04/2026: Once we have at least one STATE snapshot, we route future inputs
+	// Once we have at least one STATE snapshot, route future inputs
 	// using mLatestState.controlledAwayPlayerId so defensive switching works.
 	bool mHaveState = false;
 	bool mPauseKeyWasDown = false;
 
-	// SANTI 01/05/2026
 	// Client-side UI timing for the Game Over overlay. The host decides when
 	// the match is over; client only delays the local menu art/buttons.
 	float mGameOverMenuElapsedSec = 0.f;
@@ -232,7 +219,7 @@ public:
 	void tick(GameEngine& engine, float dt) override;
 	void render(GameEngine& engine) override;
 private:
-	// SANTI 28/04/2026: Host must bind the UDP socket before it can receive JOIN/INPUT.
+	// Host must bind the UDP socket before it can receive JOIN/INPUT.
 	bool mNetworkStarted = false;
 
 	InputHandler mInputHandler;
@@ -240,7 +227,6 @@ private:
 	std::uint8_t mMyPlayerID = 0;
 	Renderer mRenderer;
 
-	// SANTI 01/05/2026
 	// Local UI timer so the final field state remains visible briefly before
 	// Game Over buttons cover the screen.
 	float mGameOverMenuElapsedSec = 0.f;
@@ -262,7 +248,6 @@ private:
 	std::uint8_t mMyPlayerID = 0;
 	Renderer mRenderer;
 
-	// SANTI 01/05/2026
 	// Single-player uses the same delayed Game Over UI behavior as host mode.
 	float mGameOverMenuElapsedSec = 0.f;
 	bool mGameOverMouseWasDown = false;

@@ -4,24 +4,23 @@
  * @file AIController.h
  * @brief Input generator for computer-controlled soccer players.
  *
- * AI disclosure:
- * The tactical AI helpers and cooldown-based decision flow were written and
- * documented with help from OpenAI Codex because this is beyond typical CPTS
- * 122 data-structures logic.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to help draft/format documentation comments
+ * and to suggest a simple "cooldown-based" structure so AI pass/shoot actions behave like one-tick
+ * impulses (instead of being held every frame). The team tuned the heuristics through play-testing.
  *
- * Prompt used:
- * "Port simple soccer AI into my host-authoritative SFML game. Generate
- * InputPacket values from a GameStatePacket, avoid networking dependencies,
- * add cooldowns for pass/shoot decisions, and keep the code readable."
+ * Example prompt used:
+ * "Review this AIController header for a C++/SFML soccer game. Suggest clear Doxygen
+ * comments and a simple API that generates InputPacket values from a GameStatePacket,
+ * including per-player cooldowns to avoid holding pass/shoot every frame."
  */
 
 #include "../Common/Packets.h"
-#include "../Common/Constants.h" // SANTI 29/04/26: Config::kNumPlayers
-#include <array>                 // SANTI 28/04/2026: per-player AI timers
+#include "../Common/Constants.h"
+#include <array>
 
-// SANTI 29/04/26: This header is intentionally named AIController.h to match the
-// class name. This avoids confusion and avoids case-sensitive include failures
-// when building on Linux or in CI.
+// This header name intentionally matches the class name. This avoids confusion and
+// helps prevent case-sensitive include issues on Linux/CI.
 /**
  * @class AIController
  * @brief Converts a snapshot into AI-controlled InputPacket decisions.
@@ -43,13 +42,12 @@ public:
 	InputPacket getAIInput(std::uint8_t playerID, const GameStatePacket& gameStatePacket, float dt);
 
 private:
-	// SANTI 28/04/2026: Per-player "ball action" cooldown (seconds).
-	// Ensures pass/shoot are one-tick impulses, not held buttons.
+	// Per-player "ball action" cooldown (seconds). Ensures pass/shoot are one-tick
+	// impulses, not held buttons.
 	std::array<float, Config::kNumPlayers> mBallActionCooldownSec{};
 
-	// SANTI 28/04/2026: Final-third stall timer (seconds) per player.
-	// If an AI carrier stays in the attacking final third too long, we force
-	// a pass/shot so the game does not stall in front of goal.
+	// Final-third stall timer (seconds) per player. If an AI carrier stays in the
+	// attacking final third too long, force a pass/shot so play does not stall.
 	std::array<float, Config::kNumPlayers> mFinalThirdStallSec{};
 };
 

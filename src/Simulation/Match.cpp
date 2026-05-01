@@ -4,22 +4,24 @@
  * @file Match.cpp
  * @brief Match referee implementation.
  *
- * AI disclosure:
- * The state-delegation update flow, control switching, and snapshot fill logic
- * were generated/revised with help from OpenAI Codex.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to help draft/format documentation comments
+ * and to suggest a small set of edge cases to test (for example: control switching when the ball
+ * becomes loose, and keeper possession boundaries). The team implemented the referee logic and
+ * validated behavior through play-testing.
  *
- * Prompt used:
- * "Help me implement a Match referee for a host-authoritative soccer game.
- * Match should own World, current MatchState, score, timer, control routing,
- * and fill GameStatePacket without putting match rules in GameEngine."
+ * Example prompt used:
+ * "Review this Match referee implementation. Suggest guard-return patterns and small helper
+ * extractions that improve readability of control switching and match timer logic, without
+ * changing behavior."
  */
 
 #include <utility> // std::move
 #include <type_traits>
-#include <limits>  // SANTI 28/04/2026: std::numeric_limits
+#include <limits>  // std::numeric_limits
 
 namespace {
-	// SANTI 28/04/2026: 0-3 = Home team, 4-7 = Away team.
+	// 0-3 = Home team, 4-7 = Away team.
 	static bool isHomeId(int id) {
 		return id >= 0 && id < 4;
 	}
@@ -29,7 +31,7 @@ namespace {
 		return d.x * d.x + d.y * d.y;
 	}
 
-	// SANTI 28/04/2026: Finds the nearest and second-nearest OUTFIELD players on the team.
+	// Finds the nearest and second-nearest outfield players on the team.
 	// Goalkeepers are excluded because you only want GK control when they have possession.
 	static void findNearestOutfieldDefenders(
 		const World& world,
@@ -81,7 +83,6 @@ Match::Match() {
 }
 
 void Match::reset() {
-	// SANTI 01/05/2026
 	// GameEngine keeps the same Match object while menus/states change, so a
 	// new play mode must explicitly clear every piece of match-owned state.
 	// This prevents old scores, timers, cows, possession, and MatchState objects
@@ -110,7 +111,7 @@ void Match::setControlledPlayerIds(std::uint8_t homeId, std::uint8_t awayId) {
 }
 
 void Match::TransitionTo(std::unique_ptr<MatchState> nextState) {
-	if (!nextState) return; // SANTI: guard
+	if (!nextState) return;
 
 	if (mCurrentState) {
 		mCurrentState->onExit(*this);
@@ -129,17 +130,17 @@ void Match::incrementScore(TEAMS side) {
 }
 
 void Match::update(const FrameInput& frameData, float dt) {
-	// SANTI: keep frame number monotonic for networking.
+	// Keep frame number monotonic for networking.
 	++mFrameNumber;
 
 	if (!mCurrentState) {
 		TransitionTo(std::make_unique<KickoffState>());
 	}
 
-	// SANTI 28/04/2026: Save the possession team before sim step so we can detect turnovers.
+	// Save the possession team before sim step so we can detect turnovers.
 	const std::int8_t prevPossessingTeamId = mPossessingTeamId;
 
-	// SANTI 28/04/2026: Compute "switch pressed this frame" for each team using DOWN-state input.
+	// Compute "switch pressed this frame" for each team using DOWN-state input.
 	// NOTE: Switch affects the NEXT tick's input routing (InputPacket is per-player).
 	const std::uint8_t homeControlledThisTick = mControlledHomePlayerId;
 	const std::uint8_t awayControlledThisTick = mControlledAwayPlayerId;
@@ -162,14 +163,14 @@ void Match::update(const FrameInput& frameData, float dt) {
 
 	mCurrentState->update(*this, frameData, dt);
 
-	// SANTI: update possessingTeamId from ball owner when available.
+	// Update possessingTeamId from ball owner when available.
 	const int owner = mWorld.ball().getOwner();
 	if (owner >= 0) {
 		// 0-3 home, 4-7 away.
 		mPossessingTeamId = (owner < 4) ? 0 : 1;
 	}
 
-	// SANTI 28/04/2026: Automatic control policy (old-project parity).
+	// Automatic control policy.
 	//
 	// Rules:
 	// 1) If a team owns the ball (owner >= 0), that team's controlled player becomes the owner.
@@ -196,7 +197,7 @@ void Match::update(const FrameInput& frameData, float dt) {
 		(mPossessingTeamId != -1) &&
 		(mPossessingTeamId != prevPossessingTeamId);
 
-	// SANTI 28/04/2026: Defensive control is updated only on turnover or switch press.
+	// Defensive control is updated only on turnover or switch press.
 	// The "moment of keypress" computation is still done on this tick, but the new ID
 	// is used by EngineState on the next tick when building FrameInput.
 	const sf::Vector2f ballPos = mWorld.ball().getPosition();

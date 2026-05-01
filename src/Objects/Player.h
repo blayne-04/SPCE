@@ -6,8 +6,8 @@
  */
 
 #include "SFML/Graphics.hpp"
-#include "../Common/Constants.h" // SANTI: Config::PLAYER_SPEED, bounds
-#include <algorithm>             // SANTI: std::clamp
+#include "../Common/Constants.h" // Config tuning table
+#include <algorithm>             // std::clamp
 
 // ============================================================================
 // PLAYER CLASS
@@ -17,7 +17,7 @@
 // Owns physics state (position inherited from sf::CircleShape, plus velocity,
 // facing direction, lunging flag, team ID, player ID, goalkeeper flag).
 //
-// SANTI: Step 4 - added init() and const getters to support World::writeRawState.
+// This class supports snapshotting by exposing const getters for key state.
 // ============================================================================
 
 /**
@@ -34,8 +34,6 @@ public:
 	/** @brief Default constructor; call init() before gameplay use. */
 	Player() = default;
 
-	// SANTI: Step 4 helper to avoid relying on assignment/copy.
-	// Initializes all member variables to deterministic values.
 	/**
 	 * @brief Initialize stable IDs, team, goalkeeper flag, and visual radius.
 	 */
@@ -48,7 +46,7 @@ public:
 		mVelocity = sf::Vector2f(0.f, 0.f);
 		mFacingDirection = sf::Vector2f(1.f, 0.f);
 
-		// SANTI: make Player positions represent the CENTER of the circle.
+		// Positions represent the CENTER of the circle.
 		setRadius(Config::PLAYER_HALF_SIZE);
 		setOrigin(sf::Vector2f(getRadius(), getRadius()));
 	}
@@ -74,7 +72,6 @@ public:
 	bool IsGoalkeeper() const { return mIsGoalkeeper; }
 	bool IsLunging() const { return mIsLunging; }
 
-	// SANTI: Apply movement for one tick using DOWN-state input that is already normalized.
 	/**
 	 * @brief Apply one tick of movement from normalized input direction.
 	 * @param moveDir Normalized desired movement direction.
@@ -95,13 +92,11 @@ public:
 		const sf::Vector2f originalPos = getPosition();
 		sf::Vector2f pos = originalPos + (mVelocity * dt);
 
-		// SANTI 28/04/2026: Goalkeepers should not roam outside the goal mouth.
-		// Old project behavior: goalkeeper X stays fixed, and Y is clamped within
-		// the goal's vertical opening (between posts).
+		// Goalkeepers should not roam outside the goal mouth: keeper X stays fixed,
+		// and Y is clamped within the goal opening (between posts).
 		if (mIsGoalkeeper) {
-			// SANTI 28/04/2026: X must be fixed to the goalie's home/away slot,
-			// not to the current position. This prevents PhysicsEngine separation
-			// pushes from permanently drifting the goalkeeper away from the goal.
+			// X must be fixed to the keeper's home/away slot (not the current position),
+			// so separation pushes cannot permanently drift the goalkeeper away from the goal.
 			const bool isHomeKeeper = (mTeam == Config::HOME_TEAM_SIDE);
 			pos.x = isHomeKeeper ? Config::GOALKEEPER_X_LEFT : Config::GOALKEEPER_X_RIGHT;
 			mVelocity.x = 0.f;
@@ -123,7 +118,7 @@ private:
 	// MEMBER VARIABLES (verbose names, all default-initialized)
 	// ------------------------------------------------------------------------
 
-	// SANTI: defaults prevent uninitialized snapshot data.
+	// Defaults prevent uninitialized snapshot data.
 	int mPlayerID = -1;               // 0-7 (0-3 Home, 4-7 Away)
 	int mTeam = 0;                    // 0 = Home, 1 = Away
 
@@ -133,17 +128,3 @@ private:
 	bool mIsGoalkeeper = false;       // True for players 3 (Home) and 7 (Away)
 	bool mIsLunging = false;          // Dive / tackle animation flag
 };
-
-// ============================================================================
-// SUMMARY OF SANTI CHANGES (Step 4)
-// ============================================================================
-// 1) Added init(int playerID, int teamID, bool isGoalkeeper):
-//      - Sets IDs, team, goalkeeper flag.
-//      - Initializes velocity, facing direction, lunging to safe defaults.
-// 2) Added const getters required by World::writeRawState:
-//      - getPlayerID(), getTeam(), getVelocity(), getFacingDirection(),
-//        IsGoalkeeper(), IsLunging().
-// 3) Added default initializers for all member fields to prevent uninitialized
-//    snapshot data (mPlayerID = -1, mTeam = 0, mVelocity = zero,
-//    mFacingDirection = (1,0), mIsGoalkeeper = false, mIsLunging = false).
-// ============================================================================

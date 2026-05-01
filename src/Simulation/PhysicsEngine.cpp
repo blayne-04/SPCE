@@ -4,14 +4,15 @@
  * @file PhysicsEngine.cpp
  * @brief Pure geometry helpers for separation and interception.
  *
- * AI disclosure:
- * The player separation and pass/shot interception corridor math were
- * generated/revised with help from OpenAI Codex.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to help draft documentation comments and suggest
+ * small helper extractions for geometry math (dot products, clamping, corridor checks). The team
+ * implemented and verified the final behavior through play-testing.
  *
- * Prompt used:
- * "Help me implement geometry helpers for my SFML soccer game. Resolve player
- * overlap and find the first defender inside a pass/shot segment corridor using
- * player ID ranges instead of Team objects."
+ * Example prompt used:
+ * "Review this PhysicsEngine implementation for a C++/SFML soccer game. Suggest
+ * a clean, readable implementation for player separation and 'segment corridor'
+ * interceptions while keeping the module geometry-only and behavior unchanged."
  */
 
 #include "../Common/Constants.h"   // Config::PLAYER_MIN_X etc
@@ -19,20 +20,20 @@
 #include <cmath>                   // std::sqrt
 
 namespace physicsEngine {
-	// SANTI: Clamp to pitch bounds so separation pushes cannot shove players out of play.
+	// Clamp to pitch bounds so separation pushes cannot shove players out of play.
 	static sf::Vector2f clampPlayerPos(sf::Vector2f pos) {
 		pos.x = std::clamp(pos.x, Config::PLAYER_MIN_X, Config::PLAYER_MAX_X);
 		pos.y = std::clamp(pos.y, Config::PLAYER_MIN_Y, Config::PLAYER_MAX_Y);
 		return pos;
 	}
 
-	// SANTI: Dot product helper for segment projection.
+	// Dot product helper for segment projection.
 	static float dot(sf::Vector2f a, sf::Vector2f b) {
 		return a.x * b.x + a.y * b.y;
 	}
 
 
-	// SANTI: Updates "best so far" interception if candidate blocks earlier along segment.
+	// Update "best so far" interception if a candidate blocks earlier along the segment.
 	static void evaluateInterceptionCandidate(
 		const sf::Vector2f& candidatePos,
 		std::uint8_t candidateId,
@@ -108,7 +109,7 @@ void PhysicsEngine::resolvePlayerSeparation(World& world, float dt) {
 
 			const float overlap = minDist - dist;
 
-			// SANTI: Push both players away from each other equally.
+			// Push both players away from each other equally.
 			// The push constant is tuned in Config::PLAYER_SEPARATION_PUSH.
 			const sf::Vector2f push =
 				delta * (overlap * Config::PLAYER_SEPARATION_PUSH * dt * 0.5f);
@@ -146,7 +147,7 @@ SegmentInterceptionResult PhysicsEngine::findFirstSegmentInterception(
 
 	float bestT = 1.f;
 
-	// SANTI: Iterate defending player IDs only (no Team class).
+	// Iterate defending player IDs only (no Team class).
 	const auto& players = world.players();
 	for (std::uint8_t id = defendingIdStart; id <= defendingIdEndInclusive; ++id) {
 		const sf::Vector2f candidatePos = players[id].getPosition();

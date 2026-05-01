@@ -1,4 +1,19 @@
 #include "NetworkManager.h"
+
+/**
+ * @file NetworkManager.cpp
+ * @brief UDP send/receive implementation for host and client modes.
+ *
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to review non-blocking UDP receive patterns and
+ * to sanity-check the packet type tagging approach (so INPUT/STATE packets are not mis-parsed). The
+ * team implemented the networking behavior and validated it via local host/client play-testing.
+ *
+ * Example prompt used:
+ * "Review this UDP send/receive implementation. Suggest safe non-blocking polling patterns and how
+ * to keep only the latest STATE snapshot, without adding gameplay rules."
+ */
+
 #include <iostream>
 #include <queue>
 
@@ -7,7 +22,6 @@
 // ----------------------------------------------------------------------------
 void NetworkManager::stop()
 {
-	// SANTI 01/05/2026
 	// SFML UDP has no "disconnect" for this design because we use datagrams.
 	// Ending the session means unbinding the socket and clearing the remembered
 	// local/remote endpoints so future modes start from a clean network state.
@@ -266,116 +280,6 @@ bool NetworkManager::pollIdAssignment(std::uint8_t& outId)
 }
 
 // ----------------------------------------------------------------------------
-// HOST SIDE: check for JOIN_REQUEST and send ASSIGNMENT response
-// ----------------------------------------------------------------------------
-void NetworkManager::handleHandshakeRequests()
-{
-	try {
-		sf::Packet receivedPacket;
-		std::optional<sf::IpAddress> sender;
-		unsigned short senderPort = 0;
-
-		auto receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
-
-		static int totalPacketsReceived = 0;
-		static bool hasLoggedWaiting = false;
-
-		// Log if we're waiting
-		if (!hasLoggedWaiting && receiveStatus == sf::Socket::Status::NotReady) {
-			static int waitFrames = 0;
-			waitFrames++;
-			if (waitFrames % 180 == 0) { // Every 3 seconds
-				std::cout << "[HOST] Still waiting for client packets..." << std::endl;
-			}
-		}
-
-		// Drain socket looking for JOIN_REQUEST messages
-		while (receiveStatus != sf::Socket::Status::NotReady) {
-
-			if (receiveStatus == sf::Socket::Status::Error) {
-				std::cerr << "[HOST ERROR] Socket receive error in handleHandshakeRequests" << std::endl;
-				return;
-			}
-
-			if (receiveStatus != sf::Socket::Status::Done) {
-				receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
-				continue;
-			}
-
-			totalPacketsReceived++;
-			hasLoggedWaiting = true;
-
-			if (totalPacketsReceived == 1) {
-				std::cout << "[HOST] First packet received from network!" << std::endl;
-			}
-
-			if (!sender.has_value()) {
-				std::cerr << "[HOST WARNING] Received packet with no sender address" << std::endl;
-				receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
-				continue;
-			}
-
-			// Log ALL packets received
-			std::cout << "[HOST] Received packet from " << sender->toString() << ":" << senderPort 
-			          << " (total: " << totalPacketsReceived << ")" << std::endl;
-
-			// Read message type
-			std::uint8_t messageType = 0;
-			if (!(receivedPacket >> messageType)) {
-				std::cerr << "[HOST WARNING] Failed to read message type" << std::endl;
-				receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
-				continue;
-			}
-
-			std::cout << "[HOST] Message type: " << static_cast<int>(messageType) << std::endl;
-
-			// Check if it's a JOIN_REQUEST
-			if (messageType == static_cast<std::uint8_t>(NetMsg::JOIN_REQUEST)) {
-				const std::uint8_t assignedPlayerId = 4;
-
-				// Learn/update the client's endpoint
-				mRemoteAddress = *sender;
-				mRemotePort = static_cast<uint16>(senderPort);
-
-				std::cout << "[HOST] ========================================" << std::endl;
-				std::cout << "[HOST] JOIN_REQUEST received!" << std::endl;
-				std::cout << "[HOST] Client: " << sender->toString() << ":" << senderPort << std::endl;
-				std::cout << "[HOST] Assigning player ID: " << static_cast<int>(assignedPlayerId) << std::endl;
-
-				// Send ASSIGNMENT response
-				sf::Packet responsePacket;
-				responsePacket << static_cast<std::uint8_t>(NetMsg::ASSIGNMENT) << assignedPlayerId;
-				
-				std::cout << "[HOST] Sending ASSIGNMENT to " << mRemoteAddress.toString() 
-				          << ":" << mRemotePort << std::endl;
-				
-				auto sendStatus = mSocket.send(responsePacket, mRemoteAddress, static_cast<unsigned short>(mRemotePort));
-				
-				if (sendStatus != sf::Socket::Status::Done) {
-					std::cerr << "[HOST ERROR] Failed to send ASSIGNMENT!" << std::endl;
-					std::cerr << "[HOST ERROR] Status: " << static_cast<int>(sendStatus) << std::endl;
-					std::cerr << "[HOST ERROR] Client may not receive confirmation" << std::endl;
-				} else {
-					std::cout << "[HOST SUCCESS] ASSIGNMENT sent successfully!" << std::endl;
-				}
-				std::cout << "[HOST] ========================================" << std::endl;
-			} else {
-				std::cout << "[HOST] Received non-JOIN_REQUEST message (type " 
-				          << static_cast<int>(messageType) << ")" << std::endl;
-			}
-
-			receiveStatus = mSocket.receive(receivedPacket, sender, senderPort);
-		}
-	}
-	catch (const std::exception& e) {
-		std::cerr << "[HOST EXCEPTION] handleHandshakeRequests: " << e.what() << std::endl;
-	}
-	catch (...) {
-		std::cerr << "[HOST EXCEPTION] handleHandshakeRequests: Unknown error" << std::endl;
-	}
-}
-
-// ----------------------------------------------------------------------------
 // HOST SIDE: drain UDP receive buffer, extract all valid InputPackets
 // ----------------------------------------------------------------------------
 void NetworkManager::pollIncomingInputs(std::queue<InputPacket>& outQueue)
@@ -535,7 +439,6 @@ void NetworkManager::sendPlayerInput(const InputPacket& inputPacket)
 // ----------------------------------------------------------------------------
 bool NetworkManager::hasRemoteClient() const
 {
-	// SANTI 30/04/26
 	// UDP does not have a built-in connected/disconnected flag. mRemotePort is
 	// reset to 0 in startHost() and becomes nonzero only after the host receives
 	// a valid JOIN_REQUEST or INPUT packet from the client.

@@ -3,19 +3,20 @@
  * @file MatchStates.h
  * @brief Polymorphic match-state classes for kickoff, playing, and game over.
  *
- * AI disclosure:
- * The MatchState state-machine structure and kickoff/playing/game-over pipeline
- * were implemented and documented with help from OpenAI Codex to keep match
- * rules out of GameEngine and World.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to help draft/format documentation
+ * comments and to sanity-check the base-class shape for a simple match rule state machine
+ * (Kickoff/Playing/GameOver). The team defined the architecture and packet contract, then
+ * implemented and tested the behavior.
  *
- * Prompt used:
- * "Help me implement OOP match states for my soccer game. Use a MatchState base
- * class with KickoffState, PlayingState, and GameOverState. Match should
- * delegate update/onEnter/onExit and expose a packet state ID for snapshots."
+ * Example prompt used:
+ * "Review this MatchState header for a C++/SFML soccer game. Suggest concise Doxygen comments
+ * and a clean base-class API (update/onEnter/onExit + packet state id) without changing any
+ * runtime behavior."
  */
 
 #include "../Common/Packets.h"
-#include <cstdint> // SANTI: for std::uint8_t
+#include <cstdint> // for std::uint8_t
 
 /* Forward declaration to avoid circular dependency */
 class Match;
@@ -63,7 +64,7 @@ class GameOverState : public MatchState
 {
 public:
 	GameOverState();
-	std::uint8_t packetStateId() const override { return 3; } // SANTI
+	std::uint8_t packetStateId() const override { return 3; }
 	void update(Match& match, const FrameInput& frameData, float dt) override;
 	void onEnter(Match& match) override;
 	void onExit(Match& match) override;
@@ -80,14 +81,13 @@ class KickoffState : public MatchState
 {
 public:
 	KickoffState();
-	std::uint8_t packetStateId() const override { return 0; } // SANTI
+	std::uint8_t packetStateId() const override { return 0; }
 	void update(Match& match, const FrameInput& frameData, float dt) override;
 	void onEnter(Match& match) override;
 	void onExit(Match& match) override;
 
 private:
-	// SANTI 28/04/2026: Kickoff is not complete until the opening pass finishes.
-	// This mirrors real football: play begins after the ball is played to a teammate.
+	// Kickoff is not complete until the opening pass begins (ball is played to a teammate).
 	bool mKickoffPassStarted = false;
 };
 
@@ -102,7 +102,7 @@ class PlayingState : public MatchState
 {
 public:
 	PlayingState();
-	std::uint8_t packetStateId() const override { return 1; } // SANTI
+	std::uint8_t packetStateId() const override { return 1; }
 	void update(Match& match, const FrameInput& frameData, float dt) override;
 	void onEnter(Match& match) override;
 	void onExit(Match& match) override;

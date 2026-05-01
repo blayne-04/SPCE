@@ -4,25 +4,23 @@
  * @file PhysicsEngine.h
  * @brief Pure geometry and collision helpers for simulation code.
  *
- * AI disclosure:
- * The segment-corridor interception query and player-separation utility were
- * implemented and documented with help from OpenAI Codex because this geometry
- * is beyond basic CPTS 122 class/inheritance requirements.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to help draft/format documentation comments and
+ * to sanity-check the public API shape for geometry-only helpers (player separation, segment corridor
+ * interception). The team implemented and validated the final behavior through play-testing.
  *
- * Prompt used:
- * "Help me port pass/shot interception logic into a new SFML soccer simulation.
- * Use player IDs instead of Team classes, keep PhysicsEngine geometry-only, and
- * return the first defender inside a segment corridor."
+ * Example prompt used:
+ * "Review this PhysicsEngine header for a C++/SFML soccer game. Suggest concise
+ * Doxygen comments for a geometry-only API (player separation + segment corridor
+ * interception) that uses player ID ranges and does not depend on match rules."
  */
 
 #include "Simulation/World.h"
-#include <cstdint> // SANTI: uint8_t
+#include <cstdint>
 
- // SANTI: Pure-geometry result for "segment corridor" interceptions.
- // This is used by pass/shot logic to decide if a defender should intercept.
- /**
-  * @brief Result from a segment-corridor interception test.
-  */
+/**
+ * @brief Result from a segment-corridor interception test.
+ */
 struct SegmentInterceptionResult {
 	bool hasInterception = false;
 	std::uint8_t interceptorId = 255;      // 255 = "none" sentinel

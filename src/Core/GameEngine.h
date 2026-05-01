@@ -40,15 +40,14 @@ public:
     /** @brief Replace the current state stack with one new state. */
     void transitionTo(std::unique_ptr<EngineState> state);
 
-    /**
-     * @brief Clear every state and start from one replacement state.
-     *
-     * SANTI 01/05/2026:
-     * This is different from transitionTo(). transitionTo() only replaces the
-     * top state, which is correct for normal menu navigation. Pause-menu exit
-     * needs to remove the paused match underneath too, so it uses this method.
-     */
-    void resetStateStack(std::unique_ptr<EngineState> state);
+     /**
+      * @brief Clear every state and start from one replacement state.
+      *
+      * This is different from transitionTo(). transitionTo() only replaces the
+      * top state, which is correct for normal menu navigation. Pause-menu exit
+      * needs to remove the paused match underneath too, so it uses this method.
+      */
+     void resetStateStack(std::unique_ptr<EngineState> state);
 
     /**
      * @brief Reset the shared Match object for a fresh game.
@@ -58,14 +57,13 @@ public:
      */
     void resetMatch();
 
-    /**
-     * @brief Stop the shared NetworkManager socket/session.
-     *
-     * SANTI 01/05/2026:
-     * Used with resetMatch() when leaving a match so the old LAN session does
-     * not keep a UDP port bound while the user is back at the main menu.
-     */
-    void resetNetwork();
+     /**
+      * @brief Stop the shared NetworkManager socket/session.
+      *
+      * Used with resetMatch() when leaving a match so the old LAN session does
+      * not keep a UDP port bound while the user is back at the main menu.
+      */
+     void resetNetwork();
 
     /** @brief Access the shared SFML window. */
     sf::RenderWindow& getWindow() { return mWindow; }
@@ -96,13 +94,12 @@ private:
     /* Handle OS Events e.g. (Close Window) */
     void processOsEvents();
 
-    /**
-     * @brief Apply one deferred state-stack change after tick() returns.
-     *
-     * SANTI 01/05/2026:
-     * A state should not erase/replace the state stack while its own tick()
-     * function is still executing. Game Over buttons and pause exits request a
-     * transition during tick(), and GameEngine safely applies it afterward.
-     */
-    void applyPendingStateAction();
+     /**
+      * @brief Apply one deferred state-stack change after tick() returns.
+      *
+      * A state should not erase/replace the state stack while its own tick()
+      * function is still executing. Game Over buttons and pause exits request a
+      * transition during tick(), and GameEngine safely applies it afterward.
+      */
+     void applyPendingStateAction();
 };

@@ -4,37 +4,36 @@
  * @file World.cpp
  * @brief Implementation of the simulation sandbox.
  *
- * AI disclosure:
- * The cow chaos event, guided pass/shot helpers, kickoff restrictions, six-yard
- * box rules, tackle/steal mechanics, and snapshot production were
- * generated/revised with help from OpenAI Codex.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited way to help review small geometry/collision helpers
+ * (segment corridors, overlap checks) and to draft some documentation comments. The team implemented
+ * the simulation behavior and tuned gameplay through play-testing.
  *
- * Prompt used:
- * "Help me implement the World simulation for an SFML soccer game inspired by a
- * Copa Peru cow invasion. World should own players, ball, goals and cows;
- * produce GameStatePacket snapshots; enforce football-like rules; and keep
- * Match responsible for score/timer/state transitions."
+ * Example prompt used:
+ * "Review this World simulation file. Suggest small helper functions for geometry/collision checks
+ * (e.g., rect overlap, distance squared) and comment the update pipeline for readability, without
+ * changing runtime behavior."
  */
 
 #include "../Common/Constants.h"
-#include "PhysicsEngine.h" // SANTI: interception query for guaranteed pass/shot
-#include <algorithm>  // SANTI: std::clamp
-#include <array>      // SANTI 28/04/2026: fixed shot lane candidates
-#include <cmath>      // SANTI 28/04/2026: std::sqrt
-#include <chrono>     // SANTI 28/04/2026: RNG seeding (non-deterministic per run)
-#include <limits>     // SANTI: std::numeric_limits
-#include <cstdint>    // SANTI 28/04/2026: uint32_t RNG
+#include "PhysicsEngine.h"
+#include <algorithm>  // std::clamp
+#include <array>
+#include <cmath>      // std::sqrt
+#include <chrono>     // RNG seeding
+#include <limits>     // std::numeric_limits
+#include <cstdint>    // std::uint32_t
 
 [[maybe_unused]] static bool rectsOverlap(const sf::FloatRect& a, const sf::FloatRect& b) {
 	return a.findIntersection(b).has_value(); // SFML 3 replacement for intersects
 }
 
-// SANTI: Convention: player IDs 0-3 are Home, 4-7 are Away.
+// Convention: player IDs 0-3 are Home, 4-7 are Away.
 static bool isHomePlayerId(int playerId) {
 	return playerId >= 0 && playerId < 4;
 }
 
-// SANTI 28/04/2026: Tiny RNG for "chance-based" gameplay rules.
+// Tiny RNG for chance-based gameplay rules.
 // Seeded in World::World() so each run differs, but within a single run the
 // behavior is stable (useful for debugging).
 static std::uint32_t gWorldRandState = 0xC0FFEEu;
@@ -45,13 +44,11 @@ static float rand01() {
 	return static_cast<float>(mantissa) * (1.0f / 16777216.0f); // [0,1)
 }
 
-// SANTI: COWS 29/04/26
 static float randRange(float minValue, float maxValue) {
 	if (maxValue <= minValue) return minValue;
 	return minValue + (maxValue - minValue) * rand01();
 }
 
-// SANTI: COWS 29/04/26
 static int randIntInclusive(int minValue, int maxValueInclusive) {
 	if (maxValueInclusive <= minValue) return minValue;
 	const float t = rand01();
@@ -60,7 +57,7 @@ static int randIntInclusive(int minValue, int maxValueInclusive) {
 	return minValue + std::clamp(n, 0, span - 1);
 }
 
-// SANTI 28/04/2026: Returns the closest opponent distance squared to a position.
+// Returns the closest opponent distance squared to a position.
 static float nearestOpponentDistSq(const World& world, bool ownerIsHome, const sf::Vector2f& pos) {
 	const std::size_t start = ownerIsHome ? 4 : 0;
 	const std::size_t endInclusive = ownerIsHome ? 7 : 3;
@@ -75,7 +72,6 @@ static float nearestOpponentDistSq(const World& world, bool ownerIsHome, const s
 	return best;
 }
 
-// SANTI 28/04/2026: "Final third" check (old project parity).
 // Returns true if the position is far enough into the attacking direction.
 static bool isInFinalThird(const sf::Vector2f& pos, bool attackerIsHome) {
 	const float attackRange = Config::PLAYER_MAX_X - Config::PLAYER_MIN_X;
@@ -89,7 +85,7 @@ static bool isInFinalThird(const sf::Vector2f& pos, bool attackerIsHome) {
 	return clamped >= Config::AI_ATTACKING_PROGRESS_FINAL_THIRD;
 }
 
-// SANTI 28/04/2026: Minimum distance from a point to a segment.
+// Minimum distance from a point to a segment.
 // Used for shot-lane evaluation (how "blocked" a target lane is).
 static float pointToSegmentDistance(
 	const sf::Vector2f& point,
@@ -111,7 +107,7 @@ static float pointToSegmentDistance(
 	return std::sqrt(d.x * d.x + d.y * d.y);
 }
 
-// SANTI 28/04/2026: Returns the nearest defender distance to a shot lane.
+// Returns the nearest defender distance to a shot lane.
 static float nearestLaneDefenderDistance(
 	const World& world,
 	bool shooterIsHome,
@@ -130,8 +126,7 @@ static float nearestLaneDefenderDistance(
 	return best;
 }
 
-// SANTI 28/04/2026: Choose among center + near-post lanes for a guaranteed shot.
-// This is the Team-less port of old ShotTargetingService.
+// Choose among center + near-post lanes for a guided shot.
 static sf::Vector2f chooseBestShotTarget(const World& world, int shooterId) {
 	const bool shooterIsHome = isHomePlayerId(shooterId);
 	const sf::Vector2f shooterPos = world.players()[static_cast<std::size_t>(shooterId)].getPosition();
@@ -181,7 +176,7 @@ static sf::Vector2f chooseBestShotTarget(const World& world, int shooterId) {
 	return bestTarget;
 }
 
-// SANTI 28/04/2026: Chooses a teammate to receive a "guaranteed pass".
+// Choose a teammate to receive a guided pass.
 // We keep this in World.cpp so MatchStates stays easy to read.
 //
 // Selection goals (MVP):
@@ -195,12 +190,12 @@ static int chooseBestPassReceiverId(const World& world, int ownerId) {
 	const bool ownerIsHome = isHomePlayerId(ownerId);
 	const int teamStart = ownerIsHome ? 0 : 4;
 	const int teamEndInclusive = ownerIsHome ? 3 : 7;
-	const int goalkeeperId = ownerIsHome ? 3 : 7; // SANTI 28/04/2026: never choose GK as a pass target.
+	const int goalkeeperId = ownerIsHome ? 3 : 7; // never choose GK as a pass target.
 
 	const sf::Vector2f ownerPos = world.players()[ownerId].getPosition();
 	const sf::Vector2f attackDir = ownerIsHome ? sf::Vector2f(1.f, 0.f) : sf::Vector2f(-1.f, 0.f);
 
-	// SANTI 28/04/2026: Prefer "successful" passes over always-forward passes.
+	// Prefer higher-probability passes over always-forward passes.
 	// We score each teammate by:
 	// - alignment with attack direction (but allow sideways/back passes under pressure)
 	// - available space around the receiver
@@ -225,7 +220,7 @@ static int chooseBestPassReceiverId(const World& world, int ownerId) {
 
 	for (int id = teamStart; id <= teamEndInclusive; ++id) {
 		if (id == ownerId) continue;
-		if (id == goalkeeperId) continue; // SANTI 28/04/2026
+		if (id == goalkeeperId) continue;
 
 		const sf::Vector2f matePos = world.players()[id].getPosition();
 		const sf::Vector2f endPos = matePos + offset;
@@ -244,7 +239,7 @@ static int chooseBestPassReceiverId(const World& world, int ownerId) {
 		const float nearestOpp = std::sqrt(nearestOpponentDistSq(world, ownerIsHome, matePos));
 		const float spaceScore = std::clamp(nearestOpp / Config::AI_PASS_TARGET_SPACE_BONUS_DISTANCE, 0.f, 1.25f);
 
-		// SANTI 28/04/2026: Lane safety: nearest defender distance to the pass lane.
+		// Lane safety: nearest defender distance to the pass lane.
 		// Higher is better. 1.0 means "about corridorRadius away".
 		const float laneDefDist = nearestLaneDefenderDistance(world, ownerIsHome, startPos, endPos);
 		const float safetyScore = std::clamp(
@@ -276,7 +271,7 @@ static int chooseBestPassReceiverId(const World& world, int ownerId) {
 	float bestFallbackScore = -std::numeric_limits<float>::max();
 	for (int id = teamStart; id <= teamEndInclusive; ++id) {
 		if (id == ownerId) continue;
-		if (id == goalkeeperId) continue; // SANTI 28/04/2026
+		if (id == goalkeeperId) continue;
 
 		const sf::Vector2f matePos = world.players()[id].getPosition();
 		const sf::Vector2f endPos = matePos + offset;
@@ -309,17 +304,17 @@ static int chooseBestPassReceiverId(const World& world, int ownerId) {
 // ============================================================================
 // WORLD IMPLEMENTATION
 // ============================================================================
-// Step 4 deliverable: World now owns all game objects and can produce a
-// raw GameStatePacket snapshot without any match logic (score, timer, rules).
+// World owns all game objects and can produce a raw GameStatePacket snapshot
+// without owning match logic (score, timer, rules).
 // ============================================================================
 
 // ----------------------------------------------------------------------------
 // CONSTRUCTOR
 // ----------------------------------------------------------------------------
-// SANTI: Setup pitch bounds and call deterministic kickoff initialization.
+// Setup pitch bounds and call deterministic kickoff initialization.
 World::World()
 {
-	// SANTI 28/04/2026: Seed chance-based gameplay randomness so it is not the
+	// Seed chance-based gameplay randomness so it is not the
 	// same every time you launch the game.
 	//
 	// This is safe for networking because the host is authoritative and clients
@@ -348,11 +343,11 @@ World::World()
 // ----------------------------------------------------------------------------
 // DETERMINISTIC KICKOFF RESET
 // ----------------------------------------------------------------------------
-// SANTI: Called by constructor and also used when a goal is scored (to restart).
+// Called by constructor and also used when a goal is scored (to restart).
 void World::resetKickoff(int kickoffTeamSide)
 {
 
-	// SANTI: define which goal is left/right once per reset.
+	// Define which goal is left/right once per reset.
 	mHomeGoal.setSide(Config::HOME_TEAM_SIDE); // left goal
 	mAwayGoal.setSide(Config::AWAY_TEAM_SIDE); // right goal
 
@@ -396,24 +391,24 @@ void World::resetKickoff(int kickoffTeamSide)
 	mBall.clearOwner();
 	mBall.setVelocity(sf::Vector2f(0.f, 0.f));
 
-	// SANTI 28/04/2026: Restart must cancel any in-flight guided travel state.
+	// Restart must cancel any in-flight guided travel state.
 	// Without this, a pass/shot that was mid-flight could keep moving the ball
 	// after a goal or kickoff reset, because Ball::update() would continue the old travel.
 	mBall.cancelGuidedTravel();
 
-	// SANTI 28/04/2026: Clear interaction cooldowns on restart.
+	// Clear interaction cooldowns on restart.
 	// Kickoff should always be immediately playable.
 	mBall.setStealCooldown(0.f);
 
-	// SANTI 28/04/2026: Clear per-player steal retry cooldowns.
+	// Clear per-player steal retry cooldowns.
 	mStealRetryCooldownSec.fill(0.f);
 
-	// SANTI 28/04/2026: Clear input edge history on restart.
+	// Clear input edge history on restart.
 	// Kickoff should not "inherit" held buttons from before a goal/state transition.
 	mWasPassDown.fill(false);
 	mWasShootDown.fill(false);
 
-	// SANTI 28/04/2026: Deterministic kickoff ownership.
+	// Deterministic kickoff ownership.
 	// The kicking team starts with the ball on the center spot.
 	// Player IDs are fixed by contract:
 	// - Home outfield includes player 0
@@ -431,7 +426,6 @@ void World::resetKickoff(int kickoffTeamSide)
 	mBall.setOwner(kickoffOwnerId);
 	attachBallToOwnerIfAny();
 
-	// SANTI: COWS 30/04/26
 	// IMPORTANT: Cows persist across goals (they do NOT despawn on restart).
 	// Resetting cows here would make them "disappear after a goal", which breaks
 	// the intended chaos-event fantasy.
@@ -440,8 +434,8 @@ void World::resetKickoff(int kickoffTeamSide)
 // ----------------------------------------------------------------------------
 // SNAPSHOT PRODUCER (Step 4 deliverable)
 // ----------------------------------------------------------------------------
-// SANTI: Fill only the fields that World owns. Does NOT set score, timer, or
-//        game state - those belong to Match.
+// Fill only the fields that World owns. Does NOT set score, timer, or game state
+// (those belong to Match).
 void World::writeRawState(GameStatePacket& out) const
 {
 	// Pitch boundaries (constant per match).
@@ -465,7 +459,6 @@ void World::writeRawState(GameStatePacket& out) const
 		playerState.isLunging = player.IsLunging();
 	}
 
-	// SANTI: COWS 29/04/26
 	// Cow snapshot state is always sent (fixed-size), but inactive cows are marked active=false.
 	for (std::size_t i = 0; i < Config::kMaxCows; ++i) {
 		CowState& cowState = out.cows[i];
@@ -488,7 +481,7 @@ void World::applyFrameMovement(const FrameInput& frameData, float dt) {
 }
 
 // ----------------------------------------------------------------------------
-// CHAOS EVENT: COW INVASION (SANTI: COWS 29/04/26)
+// CHAOS EVENT: COW INVASION
 // ----------------------------------------------------------------------------
 namespace {
 	static std::uint8_t oppositeSide(std::uint8_t side) {
@@ -507,7 +500,6 @@ namespace {
 		return pos;
 	}
 
-	// SANTI: COWS 30/04/26
 	// Returns true if the cow center is inside the pitch bounds (accounting for radius).
 	// Entering cows start OUTSIDE the pitch, so this helper is used to decide when to clamp.
 	static bool isCowCenterInsidePitch(const sf::Vector2f& pos) {
@@ -548,7 +540,6 @@ namespace {
 
 	static void pushCowOutOfGoalMouth(sf::Vector2f& pos) {
 		bool isLeftGoal = true;
-		// SANTI: COWS 30/04/26
 		// We use an extra clearance margin so cows do not look like they are
 		// "inside the goal" even if goal lines/sprites are thicker than GOAL_WIDTH.
 		const float expanded = Config::COW_RADIUS + Config::COW_GOAL_MOUTH_CLEARANCE;
@@ -566,7 +557,6 @@ namespace {
 	}
 
 	static sf::Vector2f randomCowTargetInsidePitch() {
-		// SANTI: COWS 30/04/26
 		// Stay away from hard edges so cows distribute across the field.
 		const float edge = Config::COW_RADIUS + Config::COW_EDGE_CLEARANCE;
 
@@ -700,11 +690,9 @@ namespace {
 }
 
 void World::updateCows(float dt) {
-	// SANTI: COWS 29/04/26
 	// Called only by the host simulation (PlayingState). The client never calls this.
 	if (dt <= 0.f) return;
 
-	// SANTI: COWS 30/04/26
 	// New design (per your feedback):
 	// - Cows spawn over time until kMaxCows is reached.
 	// - Cows persist across goals (World::resetKickoff does not clear them).
@@ -833,7 +821,6 @@ void World::updateCows(float dt) {
 }
 
 void World::resolveCowPlayerCollisions(float dt) {
-	// SANTI: COWS 29/04/26
 	// Cows are heavy obstacles: we only push PLAYERS out (not cows).
 	(void)dt;
 
@@ -877,7 +864,6 @@ void World::resolveCowPlayerCollisions(float dt) {
 }
 
 void World::resolveCowBallCollisions(float dt, const sf::Vector2f& prevBallPos) {
-	// SANTI: COWS 29/04/26
 	// Ball is blocked by cows even during guided travel.
 	if (dt <= 0.f) return;
 	if (mBall.getOwner() >= 0) return;
@@ -945,7 +931,6 @@ void World::resolveCowBallCollisions(float dt, const sf::Vector2f& prevBallPos) 
 }
 
 void World::attachBallToOwnerIfAny() {
-	// SANTI: World-level possession mechanic.
 	// MatchStates decide WHEN to call this (usually every tick during Playing).
 	const int ownerId = mBall.getOwner();
 	if (ownerId < 0) return;
@@ -962,13 +947,12 @@ void World::attachBallToOwnerIfAny() {
 }
 
 void World::tryPickupLooseBall(float pickupRadius) {
-	// SANTI: MVP interception/pickup rule.
 	// This assigns ball ownership to the closest player inside pickupRadius.
 	if (pickupRadius <= 0.f) return;
 
 	if (mBall.getOwner() >= 0) return;
 
-	// SANTI: Use Ball's cooldown as a "pickup grace timer" after kicks.
+	// Use Ball's cooldown as a "pickup grace timer" after kicks.
 	// This prevents immediate re-ownership on the same frame a kick happens.
 	if (mBall.getStealCooldown() > 0.f) return;
 
@@ -997,8 +981,8 @@ void World::tryPickupLooseBall(float pickupRadius) {
 
 
 void World::resolveTackleSteals(const FrameInput& frameData, float dt) {
-	// SANTI 28/04/2026: Simplified, deterministic steal/tackle resolution.
-	// This is intentionally less complex than the old project's StealResolver:
+	// Simplified, deterministic steal/tackle resolution.
+	// This intentionally avoids complex probabilistic outcomes:
 	// - No randomness (always succeeds if in range and cooldown allows).
 	// - Uses a fixed retry cooldown per challenger to avoid spam.
 	if (dt <= 0.f) return;
@@ -1063,7 +1047,7 @@ void World::resolveTackleSteals(const FrameInput& frameData, float dt) {
 }
 
 void World::enforceGoalkeeperSixYardBoxProtection() {
-	// SANTI 28/04/2026: If a goalkeeper is holding the ball, prevent opponents
+	// If a goalkeeper is holding the ball, prevent opponents
 	// and teammates from entering the keeper's six-yard box.
 	//
 	// This is a gameplay rule enforced by the host simulation (authoritative).
@@ -1117,7 +1101,7 @@ void World::enforceGoalkeeperSixYardBoxProtection() {
 		sf::Vector2f pos = mPlayers[id].getPosition();
 		bool changed = false;
 
-		// SANTI 28/04/2026: Extra safety rule.
+		// Extra safety rule:
 		// On our small top-down pitch there is in-play space "behind" the keeper
 		// (between the keeper's fixed X and the goal line). That can cause
 		// football-nonsense situations where players drift behind their own keeper
@@ -1162,7 +1146,7 @@ void World::enforceGoalkeeperSixYardBoxProtection() {
 }
 
 void World::enforceNoPlayersInsideGoalMouth() {
-	// SANTI 28/04/2026: Hard gameplay rule for immersion.
+	// Hard gameplay rule for immersion:
 	// No player should ever stand inside the goal mouth rectangle (the net area).
 	//
 	// On a small pitch, separation pushes and simple AI steering can drift players
@@ -1203,13 +1187,13 @@ void World::enforceNoPlayersInsideGoalMouth() {
 }
 
 void World::kickGuaranteedPassWithInterception(int ownerId) {
-	// SANTI: A "guaranteed pass" is still initiated by input, but World owns the
+	// A guided pass is initiated by input, but World owns the
 	// mechanics (target choice + interception query + ball kick).
 	if (ownerId < 0) return;
 	if (ownerId >= static_cast<int>(Config::kNumPlayers)) return;
 	if (mBall.getOwner() != ownerId) return;
 
-	// SANTI 28/04/2026: Don't start a new pass if one is already in flight.
+	// Don't start a new pass if one is already in flight.
 	if (mBall.isGuidedInFlight()) return;
 
 	const bool ownerIsHome = isHomePlayerId(ownerId);
@@ -1221,8 +1205,8 @@ void World::kickGuaranteedPassWithInterception(int ownerId) {
 	const int receiverId = chooseBestPassReceiverId(*this, ownerId);
 	if (receiverId < 0) return;
 
-	// Pass to a fixed endpoint (target's current position) like the old project.
-	// This avoids "homing passes" and keeps networking deterministic.
+	// Pass to a fixed endpoint (target's current position). This avoids "homing passes"
+	// and keeps behavior stable frame-to-frame.
 	const sf::Vector2f receiverPos = mPlayers[receiverId].getPosition();
 	const sf::Vector2f endPos = receiverPos + ownerOffset;
 
@@ -1252,7 +1236,7 @@ void World::kickGuaranteedPassWithInterception(int ownerId) {
 }
 
 void World::kickGuaranteedShotWithInterception(int ownerId) {
-	// SANTI: A "guaranteed shot" aims at opponent goal center, but defenders can
+	// A guided shot aims at the opponent goal, but defenders can
 	// intercept along a corridor before the ball reaches the goal.
 	if (ownerId < 0) return;
 	if (ownerId >= static_cast<int>(Config::kNumPlayers)) return;
@@ -1260,7 +1244,7 @@ void World::kickGuaranteedShotWithInterception(int ownerId) {
 
 	const bool ownerIsHome = isHomePlayerId(ownerId);
 
-	// SANTI 28/04/2026: Don't start a new shot if one is already in flight.
+	// Don't start a new shot if one is already in flight.
 	if (mBall.isGuidedInFlight()) return;
 
 	const float sign = ownerIsHome ? 1.f : -1.f;
@@ -1268,7 +1252,7 @@ void World::kickGuaranteedShotWithInterception(int ownerId) {
 
 	const sf::Vector2f startPos = mPlayers[ownerId].getPosition() + ownerOffset;
 
-	// SANTI 28/04/2026: Lane selection (center vs near-post) based on defender spacing.
+	// Lane selection (center vs near-post) based on defender spacing.
 	const sf::Vector2f intendedEnd = chooseBestShotTarget(*this, ownerId);
 
 	const std::uint8_t defStart = ownerIsHome ? 4 : 0;
@@ -1292,7 +1276,7 @@ void World::kickGuaranteedShotWithInterception(int ownerId) {
 	int finalOwnerId = intercepted ? static_cast<int>(intercept.interceptorId) : -1;
 
 	if (!intercepted) {
-		// SANTI 28/04/2026: Distance-based save probability.
+		// Distance-based save probability.
 		// Farther shots are easier to save; closer shots are harder.
 		const float distX = std::abs(intendedEnd.x - startPos.x);
 
@@ -1324,7 +1308,7 @@ void World::kickGuaranteedShotWithInterception(int ownerId) {
 }
 
 bool World::isPassPressed(const FrameInput& frameData, int playerId) const {
-	// SANTI 28/04/2026: Edge detection for passDown (J key).
+	// Edge detection for passDown (J key).
 	// "Pressed" means down now, but was not down last tick.
 	if (playerId < 0) return false;
 	if (playerId >= static_cast<int>(Config::kNumPlayers)) return false;
@@ -1335,7 +1319,7 @@ bool World::isPassPressed(const FrameInput& frameData, int playerId) const {
 }
 
 bool World::isShootPressed(const FrameInput& frameData, int playerId) const {
-	// SANTI 28/04/2026: Edge detection for shootDown (K key).
+	// Edge detection for shootDown (K key).
 	if (playerId < 0) return false;
 	if (playerId >= static_cast<int>(Config::kNumPlayers)) return false;
 
@@ -1345,7 +1329,7 @@ bool World::isShootPressed(const FrameInput& frameData, int playerId) const {
 }
 
 void World::commitActionButtonHistory(const FrameInput& frameData) {
-	// SANTI 28/04/2026: Commit DOWN-state history for edge detection.
+	// Commit DOWN-state history for edge detection.
 	// Must be called once per simulation tick (during Playing) after you've read edges.
 	for (std::size_t i = 0; i < Config::kNumPlayers; ++i) {
 		mWasPassDown[i] = frameData.inputs[i].passDown;
@@ -1354,13 +1338,13 @@ void World::commitActionButtonHistory(const FrameInput& frameData) {
 }
 
 // ----------------------------------------------------------------------------
-// KICKOFF RULES (SANTI 28/04/2026)
+// KICKOFF RULES
 // ----------------------------------------------------------------------------
 void World::enforceKickoffDefenderRestrictions(int kickoffTeamSide) {
 	const float centerX = Config::FIELD_CENTER_X;
 	const float centerY = Config::FIELD_CENTER_Y;
 
-	// SANTI 28/04/2026: Kickoff owner is the fixed center player for the kicking team.
+	// Kickoff owner is the fixed center player for the kicking team.
 	// Home kickoff: player 0. Away kickoff: player 4.
 	const int kickoffOwnerId = (kickoffTeamSide == Config::AWAY_TEAM_SIDE) ? 4 : 0;
 
@@ -1403,7 +1387,7 @@ void World::enforceKickoffDefenderRestrictions(int kickoffTeamSide) {
 }
 
 void World::kickKickoffPassToTeammate(int kickoffOwnerId) {
-	// SANTI 28/04/2026: Kickoff pass should be a clean "opening pass" before
+	// Kickoff pass should be a clean "opening pass" before
 	// we allow open play. Do not allow interceptions here.
 	if (kickoffOwnerId < 0) return;
 	if (kickoffOwnerId >= static_cast<int>(Config::kNumPlayers)) return;
@@ -1424,24 +1408,6 @@ void World::kickKickoffPassToTeammate(int kickoffOwnerId) {
 	mBall.setPosition(startPos);
 	mBall.setVelocity(sf::Vector2f(0.f, 0.f));
 
-	// SANTI: Guided travel means no possession change until the pass resolves.
+	// Guided travel means no possession change until the pass resolves.
 	mBall.beginGuidedTravel(endPos, Config::GUARANTEED_PASS_SPEED, receiverId);
 }
-
-
-// ============================================================================
-// SUMMARY OF SANTI CHANGES (Step 4)
-// ============================================================================
-// 1) World::World() constructor:
-//      - Sets mPitchBounds using Config::WINDOW_WIDTH/HEIGHT.
-//      - Calls resetKickoff() to initialize all objects.
-// 2) World::resetKickoff():
-//      - Initializes 8 players with correct teams and goalkeeper flags.
-//      - Positions goalkeepers at fixed X (GOALKEEPER_X_LEFT/RIGHT) and center Y.
-//      - Positions outfield players using formation constants.
-//      - Resets ball to center, clears owner, zeroes velocity.
-// 3) World::writeRawState(GameStatePacket& out) const:
-//      - Fills only World-owned fields: pitchBounds, ball (pos/vel/owner),
-//        and all players (position, velocity, facing, team, isGK, isLunging).
-//      - Does NOT touch score, timer, currentState, or controlled player IDs.
-// ============================================================================

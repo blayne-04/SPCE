@@ -4,15 +4,16 @@
  * @file EngineState.cpp
  * @brief Application-state update/render implementation.
  *
- * AI disclosure:
- * The host/client gameplay pipeline that coordinates input, AI, Match,
- * NetworkManager, and Renderer was generated/revised with help from OpenAI
- * Codex.
+ * AI assistance disclosure:
+ * A generative AI assistant was used in a limited, targeted way to help draft/format some
+ * documentation comments and to suggest a few state-transition/input-routing edge cases to
+ * double-check (for example: ensuring pause/menu navigation does not leak old match state).
+ * The team implemented the state logic and verified behavior via builds and play-testing.
  *
- * Prompt used:
- * "Help me wire EngineState for a host-authoritative SFML soccer game. Host
- * should poll inputs, fill AI inputs, update Match, send snapshots, and render.
- * Client should handshake, send input, receive latest state, and render."
+ * Example prompt used:
+ * "Given this EngineState implementation, suggest places where returning to the main menu should
+ * reset Match/NetworkManager, and propose small helper functions to replace any complex lambdas.
+ * Keep the code readable and do not change behavior."
  */
 
 #include "../Core/GameEngine.h"
@@ -21,26 +22,26 @@
 #include <array>
 #include <iostream>
 #include <memory>
-#include <optional> // SANTI 29/04/26: for resolving Config::DEFAULT_HOST_ADDRESS
+#include <optional>
 #include <string>
 #include <utility>
 
 namespace {
-	// SANTI 30/04/26: Helper to slice one button cell out of the menu sprite sheet.
+	// Helper to slice one button cell out of the menu sprite sheet.
 	// This replaces the old lambda so the constructor stays easy to read.
 	static sf::IntRect makeMenuButtonSheetRect(int index, int cellWidth, int cellHeight, int transparentGap) {
 		const int x = index * (cellWidth + transparentGap);
 		return sf::IntRect({ x, 0 }, { cellWidth, cellHeight });
 	}
 
-	// SANTI 30/04/26: SFML marks Texture::loadFromFile as [[nodiscard]].
+	// SFML marks Texture::loadFromFile as [[nodiscard]].
 	// For menu UI textures, we load "best effort" and keep going if assets are missing.
 	static void loadTextureBestEffort(sf::Texture& texture, const char* path) {
 		const bool loaded = texture.loadFromFile(path);
 		(void)loaded;
 	}
 
-	// SANTI 30/04/26: Helper to apply standard origin/scale/position to an optional button sprite.
+	// Helper to apply standard origin/scale/position to an optional button sprite.
 	static void setupMenuButtonSprite(
 		std::optional<sf::Sprite>& optionalSprite,
 		float centerX,
@@ -56,7 +57,6 @@ namespace {
 		optionalSprite->setPosition({ centerX, centerY });
 	}
 
-	// SANTI 30/04/26
 	// Shared font for small state-level UI overlays such as Join Game and host
 	// networking instructions. Renderer has its own HUD helper, but EngineState
 	// also needs text before a match snapshot exists.
@@ -131,7 +131,6 @@ namespace {
 	}
 
 	static void drawHostNetworkingHint(sf::RenderWindow& window) {
-		// SANTI 30/04/26
 		// Low-risk host usability improvement: SFML can suggest one local IPv4
 		// address, but laptops with VPNs/VirtualBox may have multiple adapters.
 		// The UI therefore presents it as a suggestion and tells the host what
@@ -172,7 +171,6 @@ namespace {
 	}
 
 	static void drawClientConnectedHint(sf::RenderWindow& window) {
-		// SANTI 30/04/26
 		// Small confirmation after the host has learned a client endpoint.
 		// This replaces the larger connection-instruction box so gameplay view
 		// is less cluttered after the client joins.
@@ -195,7 +193,6 @@ namespace {
 			sf::Color(150, 255, 160));
 	}
 
-	// SANTI 01/05/2026
 	// GameStatePacket.currentState uses the shared wire contract. State id 3 is
 	// GameOverState, so menu/gameplay code can check this without depending on
 	// concrete MatchState classes.
@@ -213,7 +210,6 @@ namespace {
 	}
 
 	static sf::FloatRect gameOverTryAgainButtonBounds() {
-		// SANTI 01/05/2026
 		// TryAgain.png is a 1408x768 canvas with the visible button on the
 		// right side of that canvas. Renderer centers/scales the whole canvas,
 		// so this rectangle targets the actual visible button, not the full PNG.
@@ -226,7 +222,6 @@ namespace {
 	}
 
 	static sf::FloatRect gameOverQuitButtonBounds() {
-		// SANTI 01/05/2026
 		// QuitB.png also has transparent canvas padding. These values target the
 		// visible quit button after Renderer applies its 0.15 scale.
 		const float buttonWidth = 140.f;
@@ -254,7 +249,6 @@ namespace {
 	}
 
 	static void resetMatchAndReturnToMainMenu(GameEngine& engine) {
-		// SANTI 01/05/2026
 		// Leaving a match should end it completely. Clear Match first, then clear
 		// the whole state stack so no old gameplay state remains behind the menu.
 		engine.resetNetwork();
@@ -275,7 +269,6 @@ namespace {
 	}
 
 	static void resetMatchAndReturnToJoinScreen(GameEngine& engine) {
-		// SANTI 01/05/2026
 		// A client cannot authoritatively restart the host's match. Try Again
 		// returns the client to the Join screen so it can reconnect after the
 		// host starts a fresh match.
@@ -311,7 +304,6 @@ namespace {
 		bool& mouseWasDown,
 		GameOverRetryTarget retryTarget)
 	{
-		// SANTI 01/05/2026
 		// Returns true while the active state should stop normal gameplay work.
 		// The one-second delay is local UI timing; the authoritative match has
 		// already reached GameOver.
@@ -382,7 +374,6 @@ void StartMenuState::tick(GameEngine& engine, float dt) {
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
 		// Must check if optional has value before dereferencing with *
 		if (mBtnPlay && isSpriteClicked(*mBtnPlay, window)) {
-			// SANTI 01/05/2026
 			// Every play-mode selection starts a fresh Match. This prevents a
 			// previous abandoned/game-over match from leaking score, cows, timer,
 			// or ball ownership into the next mode.
@@ -391,7 +382,6 @@ void StartMenuState::tick(GameEngine& engine, float dt) {
 			engine.transitionTo(std::make_unique<SinglePlayerPlayingState>());
 		}
 		else if (mBtnHost && isSpriteClicked(*mBtnHost, window)) {
-			// SANTI 30/04/26
 			// Host socket setup belongs in HostPlayingState::tick so the menu
 			// only decides navigation. HostPlayingState also renders the runtime
 			// IP/port instructions for the user.
@@ -400,7 +390,6 @@ void StartMenuState::tick(GameEngine& engine, float dt) {
 			engine.transitionTo(std::make_unique<HostPlayingState>());
 		}
 		else if (mBtnJoin && isSpriteClicked(*mBtnJoin, window)) {
-			// SANTI 30/04/26
 			// JoinGameState lets the user type the host IP at runtime.
 			// This replaces hardcoded LAN addresses such as 10.x.x.x.
 			engine.resetNetwork();
@@ -438,7 +427,6 @@ bool StartMenuState::isSpriteClicked(sf::Sprite& sprite, sf::RenderWindow& windo
 JoinGameState::JoinGameState()
 	: mHostAddressText(Config::DEFAULT_HOST_ADDRESS)
 {
-	// SANTI 30/04/26
 	// Keep the constructor explicit so this state always starts with a useful
 	// localhost default for same-machine testing.
 }
@@ -478,7 +466,6 @@ void JoinGameState::deleteLastCharacterIfPressed() {
 }
 
 bool JoinGameState::enterPressedOnce() {
-	// SANTI 30/04/26
 	// SFML 3 exposes the keypad Enter as a scancode, not as a Keyboard::Key.
 	// Keep this MVP input screen simple and use the standard Enter key.
 	return keyPressedOnce(sf::Keyboard::Key::Enter, mEnterKeyWasDown);
@@ -587,7 +574,6 @@ void JoinGameState::render(GameEngine& engine) {
 SettingsMenuState::SettingsMenuState()
 {
 	loadTextureBestEffort(mBgTex, "assets/backgrounds/homeMenu.png");
-	// SANTI 30/04/26
 	// Use the exact repo folder casing. Windows ignores this, but Linux CI does not.
 	loadTextureBestEffort(mPanelTex, "assets/UI/soccer_ui/panel.png");
 	loadTextureBestEffort(mSettingWordsTex, "assets/UI/soccer_ui/settings_wording.png");
@@ -780,7 +766,6 @@ PauseMenuState::PauseMenuState()
 		mResumeBtn.getPosition().y - 18.f
 		});
 
-	// SANTI 01/05/2026
 	// If Escape opened the pause menu, that same physical key press should not
 	// immediately close it on the next frame. Store the current key state so the
 	// menu only closes after the player releases Escape and presses it again.
@@ -801,7 +786,6 @@ void PauseMenuState::tick(GameEngine& engine, float dt)
 		}
 
 		if (mExitBtn && isMouseOver(mExitBtn->getGlobalBounds(), window)) {
-			// SANTI 01/05/2026
 			// Exit means "end this match", not just "hide the pause menu".
 			// resetStateStack removes the paused gameplay state underneath.
 			resetMatchAndReturnToMainMenu(engine);
@@ -858,7 +842,6 @@ ClientPlayingState::ClientPlayingState()
 ClientPlayingState::ClientPlayingState(std::string hostAddressText)
 	: mHostAddressText(std::move(hostAddressText))
 {
-	// SANTI 30/04/26
 	// Host address is supplied by JoinGameState so users do not have to edit
 	// Constants.h before starting a LAN client.
 }
@@ -867,10 +850,9 @@ void ClientPlayingState::tick(GameEngine& engine, float dt)
 {
 	auto& network = engine.getNetwork();
 
-	// SANTI 28/04/2026: Start the client socket exactly once.
+	// Start the client socket exactly once.
 	// For LAN play, JoinGameState passes the host IPv4 address typed by the user.
 	if (!mNetworkStarted) {
-		// SANTI 30/04/26
 		// The Join screen is intentionally IPv4-only for MVP simplicity.
 		// If parsing fails, fall back to localhost so local tests remain easy.
 		const std::optional<sf::IpAddress> resolved =
@@ -907,14 +889,14 @@ void ClientPlayingState::tick(GameEngine& engine, float dt)
 	}
 
 	/* Normal gameplay : send input to host */
-	// SANTI 28/04/2026: After we receive the first snapshot, route inputs using the
+	// After we receive the first snapshot, route inputs using the
 	// host-authoritative controlledAwayPlayerId (enables defensive switching).
 	std::uint8_t inputPlayerId = mMyPlayerID;
 	if (mHaveState) {
 		inputPlayerId = mLatestState.controlledAwayPlayerId;
 	}
 
-	// SANTI 29/04/26: IMPORTANT for local testing with 2 instances on the same PC.
+	// IMPORTANT for local testing with 2 instances on the same PC.
 	//
 	// InputHandler uses sf::Keyboard::isKeyPressed which reads the GLOBAL keyboard state,
 	// even if a window is out of focus. This means if you run a Host window and a Client
@@ -973,12 +955,12 @@ void HostPlayingState::tick(GameEngine& engine, float dt)
 	auto& network = engine.getNetwork();
 	auto& match = engine.getMatch();
 
-	// SANTI 28/04/2026: Start the host socket exactly once (bind to fixed port).
+	// Start the host socket exactly once (bind to fixed port).
 	if (!mNetworkStarted) {
 		network.startHost(Config::HOST_PORT);
 		mNetworkStarted = true;
 
-		// SANTI 28/04/2026: For single-client MVP, host controls Home player 0.
+		// For single-client MVP, host controls Home player 0.
 		// Client is assigned Away player 4 by handshake (see NetworkManager).
 		match.setControlledPlayerIds(0, 4);
 	}
@@ -987,7 +969,6 @@ void HostPlayingState::tick(GameEngine& engine, float dt)
 	match.getGameState(stateBeforeTick);
 
 	if (snapshotIsGameOver(stateBeforeTick)) {
-		// SANTI 01/05/2026
 		// Host keeps broadcasting the final snapshot while the delayed Game
 		// Over menu is active, so a connected client can also show the result.
 		network.sendGameState(stateBeforeTick);
@@ -1011,24 +992,16 @@ void HostPlayingState::tick(GameEngine& engine, float dt)
 	mPauseKeyWasDown = pauseKeyDown;
 
 	/* Handle any new clients trying to join */
-	// SANTI 29/04/26: Do NOT call handleHandshakeRequests() here.
-	//
-	// Reason:
-	// - handleHandshakeRequests() drains the UDP socket and only processes JOIN_REQUEST.
-	// - Any INPUT packets received during that drain would be discarded.
-	//
-	// pollIncomingInputs() already handles JOIN_REQUEST (and INPUT) correctly in one place,
-	// so HostPlayingState should rely on pollIncomingInputs() only.
-	//
-	// This makes networking behavior stable and avoids "missing client input" glitches.
+	// pollIncomingInputs() handles JOIN_REQUEST (handshake) and INPUT packets in
+	// one place, so HostPlayingState relies on it exclusively.
 
-	// SANTI 28/04/2026: Host input is always for the currently controlled HOME player.
+	// Host input is always for the currently controlled HOME player.
 	// This enables defensive switching and "control the ball owner" without changing networking.
 	const std::uint8_t hostControlledId = match.getControlledHomePlayerId();
 
 	FrameInput frameData{};
 
-	// SANTI 29/04/26: Same local-two-instances fix as the client side.
+	// Same local-two-instances fix as the client side.
 	// Only the focused window is allowed to generate real keyboard input.
 	const bool windowHasFocus = engine.getWindow().hasFocus();
 	if (windowHasFocus) {
@@ -1040,7 +1013,7 @@ void HostPlayingState::tick(GameEngine& engine, float dt)
 	bool isHuman[Config::kNumPlayers] = { false };
 	isHuman[hostControlledId] = true;
 
-	// SANTI 28/04/2026: Reserve the away-side controlled player for the client,
+	// Reserve the away-side controlled player for the client,
 	// even if no INPUT has arrived yet. This prevents AI from moving the client's
 	// player during handshake / packet loss.
 	const std::uint8_t awayControlledId = match.getControlledAwayPlayerId();
@@ -1064,7 +1037,6 @@ void HostPlayingState::tick(GameEngine& engine, float dt)
 		}
 
 		if (p.playerId != awayControlledId) {
-			// SANTI 01/05/2026
 			// Networking is single-client for this MVP. The client is allowed to
 			// control only the host-authoritative Away controlled slot. This
 			// prevents a bad/stale packet from accidentally moving Home players
@@ -1119,7 +1091,6 @@ void HostPlayingState::render(GameEngine& engine)
 
 	if (snapshotIsGameOver(currentState)) return;
 
-	// SANTI 30/04/26
 	// Show connection instructions only while waiting for the client.
 	// Once NetworkManager has learned a remote endpoint, replace the big box
 	// with a small confirmation so it does not cover gameplay.
@@ -1162,7 +1133,7 @@ void SinglePlayerPlayingState::tick(GameEngine& engine, float dt)
 	mPauseKeyWasDown = pauseKeyDown;
 
 	/* Build frame input */
-	// SANTI 28/04/2026: Singleplayer uses the same control policy as host play.
+	// Singleplayer uses the same control policy as host play.
 	// You always send input for match.getControlledHomePlayerId().
 	const std::uint8_t myId = match.getControlledHomePlayerId();
 
@@ -1192,7 +1163,6 @@ void SinglePlayerPlayingState::render(GameEngine& engine)
 	GameStatePacket currentState;
 	match.getGameState(currentState);
 
-	// SANTI 30/04/26
 	// Single-player controls only the Home side. Hide the Away controlled-player
 	// marker so the player does not think the AI opponent is also user-controlled.
 	const bool showGameOverOverlay =

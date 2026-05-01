@@ -42,8 +42,8 @@ InputPacket InputHandler::getLocalInput(std::uint8_t playerID)
 	// Button DOWN semantics (host will compute "pressed this frame" if needed).
 	out.shootDown = sf::Keyboard::isKeyPressed(Config::SHOOT_KEY);
 	out.passDown = sf::Keyboard::isKeyPressed(Config::PASS_KEY);
-	// SANTI 29/04/26: Accept both L and F as tackle keys so testing doesn't get
-	// blocked by muscle memory from the old project.
+	// Accept both keys as tackle keys so quick testing doesn't get blocked by
+	// different keybinding expectations.
 	out.tackleDown =
 		sf::Keyboard::isKeyPressed(Config::TACKLE_KEY) ||
 		sf::Keyboard::isKeyPressed(Config::TACKLE_KEY_ALT);

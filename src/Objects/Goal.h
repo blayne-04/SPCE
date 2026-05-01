@@ -29,5 +29,5 @@ public:
 	bool checkBallCollision(const Ball& ball);
 
 private:
-	int mSide = 0; // SANTI: default initialize
+	int mSide = 0; // default initialize
 };

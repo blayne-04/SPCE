@@ -9,8 +9,8 @@
 /**
  * @brief Return true when two SFML rectangles overlap.
  *
- * SANTI: Manual rect overlap avoids SFML2 vs SFML3 API differences and keeps
- * goal scoring independent from a specific SFML rectangle helper name.
+ * This manual overlap helper keeps goal scoring independent from a specific SFML
+ * rectangle helper name/version.
  */
 static bool rectsOverlap(const sf::FloatRect& a, const sf::FloatRect& b) {
 	const float aLeft = a.position.x;
