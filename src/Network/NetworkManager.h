@@ -33,6 +33,16 @@ public:
 	NetworkManager() = default;
 
 	/**
+	 * @brief Close the UDP socket and forget any remote endpoint.
+	 *
+	 * SANTI 01/05/2026:
+	 * Used when a player exits a match back to the main menu. This prevents an
+	 * old host/client socket from staying bound while the user is no longer in
+	 * that match.
+	 */
+	void stop();
+
+	/**
 	 * @brief Bind the socket as host on a known port.
 	 * @param localPort Port that clients will connect to.
 	 */

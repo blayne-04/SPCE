@@ -72,6 +72,51 @@ namespace {
 		window.draw(text);
 	}
 
+	// SANTI 01/05/2026
+	// Centered text helper for the Game Over overlay. Kept in Renderer because
+	// this is presentation-only; Match still owns score and winner data.
+	static void drawCenteredHudText(
+		sf::RenderWindow& window,
+		const sf::Font& font,
+		const std::string& textString,
+		float centerX,
+		float topY,
+		sf::Color color,
+		int characterSize)
+	{
+		sf::Text text(font, textString, characterSize);
+		text.setFillColor(color);
+		text.setOutlineColor(sf::Color::Black);
+		text.setOutlineThickness(2.f);
+
+		const sf::FloatRect localBounds = text.getLocalBounds();
+		text.setOrigin({
+			localBounds.position.x + localBounds.size.x * 0.5f,
+			localBounds.position.y
+			});
+		text.setPosition({ centerX, topY });
+
+		window.draw(text);
+	}
+
+	// SANTI 01/05/2026
+	// Converts the final score into a readable winner line for the Game Over
+	// menu. Renderer only reads the packet; it does not decide match rules.
+	static std::string winnerTextFromGameState(const GameStatePacket& gameState) {
+		if (gameState.scoreHome > gameState.scoreAway) return "HOME WINS";
+		if (gameState.scoreAway > gameState.scoreHome) return "AWAY WINS";
+		return "DRAW";
+	}
+
+	static std::string finalScoreTextFromGameState(const GameStatePacket& gameState) {
+		return
+			"Final Score: Home " +
+			std::to_string(gameState.scoreHome) +
+			" - " +
+			std::to_string(gameState.scoreAway) +
+			" Away";
+	}
+
 	// ------------------------------------------------------------------------
 	// COW AND BALL SPRITESHEET ANIMATION (SANTI: COWS 30/04/26)
 	// ------------------------------------------------------------------------
@@ -884,7 +929,7 @@ namespace {
 Renderer::Renderer() {
 	// 1. Initialize Background
 	// SANTI 30/04/26: Use the shared repo convention "assets/backgrounds/".
-	if (mBackgroundTex.loadFromFile("assets/backgrounds/footballPitch.png")) {
+	if (mBackgroundTex.loadFromFile("assets/backgrounds/footballPitchSponsors.png")) {
 		mBackgroundSprite.emplace(mBackgroundTex);
 		float scaleX = static_cast<float>(Config::WINDOW_WIDTH) / mBackgroundTex.getSize().x;
 		float scaleY = static_cast<float>(Config::WINDOW_HEIGHT) / mBackgroundTex.getSize().y;
@@ -989,7 +1034,8 @@ Renderer::Renderer() {
 void Renderer::render(
 	sf::RenderWindow& window,
 	const GameStatePacket& gameState,
-	bool showAwayControlledIndicator)
+	bool showAwayControlledIndicator,
+	bool showGameOverOverlay)
 {
 	// A. Draw Background
 	window.setView(window.getDefaultView());
@@ -1097,9 +1143,31 @@ void Renderer::render(
 	window.setView(window.getDefaultView());
 	renderHUD(window, (int)gameState.scoreHome, (int)gameState.scoreAway, gameState.matchTimerSec, (int)gameState.currentState);
 
-	if (gameState.currentState == 3) {
+	if (showGameOverOverlay && gameState.currentState == 3) {
 		if (mGameOverPanelSprite) window.draw(*mGameOverPanelSprite);
 		if (mGameOverTextSprite) window.draw(*mGameOverTextSprite);
+
+		const sf::Font* font = getHudFont();
+		if (font) {
+			drawCenteredHudText(
+				window,
+				*font,
+				winnerTextFromGameState(gameState),
+				Config::WINDOW_WIDTH * 0.5f,
+				240.f,
+				sf::Color(255, 230, 120),
+				34);
+
+			drawCenteredHudText(
+				window,
+				*font,
+				finalScoreTextFromGameState(gameState),
+				Config::WINDOW_WIDTH * 0.5f,
+				285.f,
+				sf::Color::White,
+				24);
+		}
+
 		if (mTryAgainSprite) window.draw(*mTryAgainSprite);
 		if (mQuitSprite) window.draw(*mQuitSprite);
 	}

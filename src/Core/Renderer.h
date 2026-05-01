@@ -42,10 +42,14 @@ public:
     //
     // showAwayControlledIndicator lets single-player hide the Away controlled
     // marker while host/client modes can still show both controlled slots.
+    //
+    // showGameOverOverlay lets EngineState delay the large Game Over menu for
+    // one second while still rendering the final field/HUD snapshot.
     void render(
         sf::RenderWindow& window,
         const GameStatePacket& gameState,
-        bool showAwayControlledIndicator = true);
+        bool showAwayControlledIndicator = true,
+        bool showGameOverOverlay = true);
 
     // SANTI 30/04/26
     // Draws score, clock, and current match-state label over the world view.

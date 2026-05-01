@@ -194,6 +194,146 @@ namespace {
 			16,
 			sf::Color(150, 255, 160));
 	}
+
+	// SANTI 01/05/2026
+	// GameStatePacket.currentState uses the shared wire contract. State id 3 is
+	// GameOverState, so menu/gameplay code can check this without depending on
+	// concrete MatchState classes.
+	static bool snapshotIsGameOver(const GameStatePacket& gameState) {
+		return gameState.currentState == 3;
+	}
+
+	static bool gameOverMenuDelayFinished(float elapsedSeconds) {
+		return elapsedSeconds >= Config::GAME_OVER_MENU_DELAY_SECONDS;
+	}
+
+	static void resetGameOverMenuTracking(float& elapsedSeconds, bool& mouseWasDown) {
+		elapsedSeconds = 0.f;
+		mouseWasDown = sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
+	}
+
+	static sf::FloatRect gameOverTryAgainButtonBounds() {
+		// SANTI 01/05/2026
+		// TryAgain.png is a 1408x768 canvas with the visible button on the
+		// right side of that canvas. Renderer centers/scales the whole canvas,
+		// so this rectangle targets the actual visible button, not the full PNG.
+		const float buttonWidth = 230.f;
+		const float buttonHeight = 115.f;
+		const float buttonX = 445.f;
+		const float buttonY = 390.f;
+
+		return sf::FloatRect({ buttonX, buttonY }, { buttonWidth, buttonHeight });
+	}
+
+	static sf::FloatRect gameOverQuitButtonBounds() {
+		// SANTI 01/05/2026
+		// QuitB.png also has transparent canvas padding. These values target the
+		// visible quit button after Renderer applies its 0.15 scale.
+		const float buttonWidth = 140.f;
+		const float buttonHeight = 125.f;
+		const float buttonX = 330.f;
+		const float buttonY = 375.f;
+
+		return sf::FloatRect({ buttonX, buttonY }, { buttonWidth, buttonHeight });
+	}
+
+	static bool pollLeftMouseClickOnce(
+		sf::RenderWindow& window,
+		bool& mouseWasDown,
+		sf::Vector2f& outMouseWorldPosition)
+	{
+		const bool mouseIsDown = sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
+		const bool mouseJustClicked = mouseIsDown && !mouseWasDown;
+		mouseWasDown = mouseIsDown;
+
+		if (!mouseJustClicked) return false;
+
+		const sf::Vector2i mousePixelPosition = sf::Mouse::getPosition(window);
+		outMouseWorldPosition = window.mapPixelToCoords(mousePixelPosition);
+		return true;
+	}
+
+	static void resetMatchAndReturnToMainMenu(GameEngine& engine) {
+		// SANTI 01/05/2026
+		// Leaving a match should end it completely. Clear Match first, then clear
+		// the whole state stack so no old gameplay state remains behind the menu.
+		engine.resetNetwork();
+		engine.resetMatch();
+		engine.resetStateStack(std::make_unique<StartMenuState>());
+	}
+
+	static void resetMatchAndRestartSinglePlayer(GameEngine& engine) {
+		engine.resetNetwork();
+		engine.resetMatch();
+		engine.resetStateStack(std::make_unique<SinglePlayerPlayingState>());
+	}
+
+	static void resetMatchAndRestartHostMode(GameEngine& engine) {
+		engine.resetNetwork();
+		engine.resetMatch();
+		engine.resetStateStack(std::make_unique<HostPlayingState>());
+	}
+
+	static void resetMatchAndReturnToJoinScreen(GameEngine& engine) {
+		// SANTI 01/05/2026
+		// A client cannot authoritatively restart the host's match. Try Again
+		// returns the client to the Join screen so it can reconnect after the
+		// host starts a fresh match.
+		engine.resetNetwork();
+		engine.resetMatch();
+		engine.resetStateStack(std::make_unique<JoinGameState>());
+	}
+
+	enum class GameOverRetryTarget {
+		SinglePlayer,
+		Host,
+		ClientJoin
+	};
+
+	static void restartGameOverTarget(GameEngine& engine, GameOverRetryTarget retryTarget) {
+		if (retryTarget == GameOverRetryTarget::SinglePlayer) {
+			resetMatchAndRestartSinglePlayer(engine);
+			return;
+		}
+
+		if (retryTarget == GameOverRetryTarget::Host) {
+			resetMatchAndRestartHostMode(engine);
+			return;
+		}
+
+		resetMatchAndReturnToJoinScreen(engine);
+	}
+
+	static bool updateDelayedGameOverMenu(
+		GameEngine& engine,
+		float dt,
+		float& elapsedSeconds,
+		bool& mouseWasDown,
+		GameOverRetryTarget retryTarget)
+	{
+		// SANTI 01/05/2026
+		// Returns true while the active state should stop normal gameplay work.
+		// The one-second delay is local UI timing; the authoritative match has
+		// already reached GameOver.
+		elapsedSeconds += dt;
+
+		if (!gameOverMenuDelayFinished(elapsedSeconds)) return true;
+
+		sf::Vector2f mouseWorldPosition;
+		if (!pollLeftMouseClickOnce(engine.getWindow(), mouseWasDown, mouseWorldPosition)) return true;
+
+		if (gameOverTryAgainButtonBounds().contains(mouseWorldPosition)) {
+			restartGameOverTarget(engine, retryTarget);
+			return true;
+		}
+
+		if (gameOverQuitButtonBounds().contains(mouseWorldPosition)) {
+			resetMatchAndReturnToMainMenu(engine);
+			return true;
+		}
+
+		return true;
+	}
 }
 
 /**************************
@@ -242,6 +382,12 @@ void StartMenuState::tick(GameEngine& engine, float dt) {
 	if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
 		// Must check if optional has value before dereferencing with *
 		if (mBtnPlay && isSpriteClicked(*mBtnPlay, window)) {
+			// SANTI 01/05/2026
+			// Every play-mode selection starts a fresh Match. This prevents a
+			// previous abandoned/game-over match from leaking score, cows, timer,
+			// or ball ownership into the next mode.
+			engine.resetNetwork();
+			engine.resetMatch();
 			engine.transitionTo(std::make_unique<SinglePlayerPlayingState>());
 		}
 		else if (mBtnHost && isSpriteClicked(*mBtnHost, window)) {
@@ -249,12 +395,16 @@ void StartMenuState::tick(GameEngine& engine, float dt) {
 			// Host socket setup belongs in HostPlayingState::tick so the menu
 			// only decides navigation. HostPlayingState also renders the runtime
 			// IP/port instructions for the user.
+			engine.resetNetwork();
+			engine.resetMatch();
 			engine.transitionTo(std::make_unique<HostPlayingState>());
 		}
 		else if (mBtnJoin && isSpriteClicked(*mBtnJoin, window)) {
 			// SANTI 30/04/26
 			// JoinGameState lets the user type the host IP at runtime.
 			// This replaces hardcoded LAN addresses such as 10.x.x.x.
+			engine.resetNetwork();
+			engine.resetMatch();
 			engine.transitionTo(std::make_unique<JoinGameState>());
 		}
 		else if (mBtnSettings && isSpriteClicked(*mBtnSettings, window)) {
@@ -569,7 +719,7 @@ void SettingsMenuState::updateIcons()
 **************************/
 PauseMenuState::PauseMenuState()
 	: mResumeText(mFont),
-	
+
 	mInstructionsText(mFont)
 {
 	mExitTex.loadFromFile("assets/UI/soccer_ui/exit.png");
@@ -594,7 +744,7 @@ PauseMenuState::PauseMenuState()
 		"		 CONTROLS\n\n"
 		"Move: W, A, S, D\n"
 		"Pass: J\n"
-		"Shoot: K (hold to charge)\n"
+		"Shoot: K\n"
 		"Tackle or Steal: L\n"
 		"Switch Defender: I"
 	);
@@ -629,6 +779,12 @@ PauseMenuState::PauseMenuState()
 		mResumeBtn.getPosition().x - 90,
 		mResumeBtn.getPosition().y - 18.f
 		});
+
+	// SANTI 01/05/2026
+	// If Escape opened the pause menu, that same physical key press should not
+	// immediately close it on the next frame. Store the current key state so the
+	// menu only closes after the player releases Escape and presses it again.
+	mEscapeWasDown = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape);
 }
 
 void PauseMenuState::tick(GameEngine& engine, float dt)
@@ -645,7 +801,10 @@ void PauseMenuState::tick(GameEngine& engine, float dt)
 		}
 
 		if (mExitBtn && isMouseOver(mExitBtn->getGlobalBounds(), window)) {
-			engine.transitionTo(std::make_unique<StartMenuState>());
+			// SANTI 01/05/2026
+			// Exit means "end this match", not just "hide the pause menu".
+			// resetStateStack removes the paused gameplay state underneath.
+			resetMatchAndReturnToMainMenu(engine);
 			return;
 		}
 	}
@@ -677,7 +836,7 @@ void PauseMenuState::render(GameEngine& engine)
 	//window.draw(mQuitBtn);
 	window.draw(mResumeText);
 	if (mExitBtn) window.draw(*mExitBtn);
-	
+
 
 }
 bool PauseMenuState::isMouseOver(const sf::FloatRect& bounds, sf::RenderWindow& window)
@@ -780,12 +939,29 @@ void ClientPlayingState::tick(GameEngine& engine, float dt)
 		mLatestState = latestGameState; /* Store for rendering */
 		mHaveState = true;
 	}
+
+	if (mHaveState && snapshotIsGameOver(mLatestState)) {
+		(void)updateDelayedGameOverMenu(
+			engine,
+			dt,
+			mGameOverMenuElapsedSec,
+			mGameOverMouseWasDown,
+			GameOverRetryTarget::ClientJoin);
+		return;
+	}
+
+	resetGameOverMenuTracking(mGameOverMenuElapsedSec, mGameOverMouseWasDown);
 }
 
 void ClientPlayingState::render(GameEngine& engine)
 {
 	auto& window = engine.getWindow();
-	mRenderer.render(window, mLatestState);
+
+	const bool showGameOverOverlay =
+		!snapshotIsGameOver(mLatestState) ||
+		gameOverMenuDelayFinished(mGameOverMenuElapsedSec);
+
+	mRenderer.render(window, mLatestState, true, showGameOverOverlay);
 }
 
 /**************************
@@ -807,10 +983,32 @@ void HostPlayingState::tick(GameEngine& engine, float dt)
 		match.setControlledPlayerIds(0, 4);
 	}
 
+	GameStatePacket stateBeforeTick;
+	match.getGameState(stateBeforeTick);
+
+	if (snapshotIsGameOver(stateBeforeTick)) {
+		// SANTI 01/05/2026
+		// Host keeps broadcasting the final snapshot while the delayed Game
+		// Over menu is active, so a connected client can also show the result.
+		network.sendGameState(stateBeforeTick);
+
+		(void)updateDelayedGameOverMenu(
+			engine,
+			dt,
+			mGameOverMenuElapsedSec,
+			mGameOverMouseWasDown,
+			GameOverRetryTarget::Host);
+		return;
+	}
+
+	resetGameOverMenuTracking(mGameOverMenuElapsedSec, mGameOverMouseWasDown);
+
 	/* Check for pause */
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
+	const bool pauseKeyDown = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape);
+	if (pauseKeyDown && !mPauseKeyWasDown) {
 		engine.pushState(std::make_unique<PauseMenuState>());
 	}
+	mPauseKeyWasDown = pauseKeyDown;
 
 	/* Handle any new clients trying to join */
 	// SANTI 29/04/26: Do NOT call handleHandshakeRequests() here.
@@ -865,6 +1063,21 @@ void HostPlayingState::tick(GameEngine& engine, float dt)
 			continue;
 		}
 
+		if (p.playerId != awayControlledId) {
+			// SANTI 01/05/2026
+			// Networking is single-client for this MVP. The client is allowed to
+			// control only the host-authoritative Away controlled slot. This
+			// prevents a bad/stale packet from accidentally moving Home players
+			// or an AI-controlled Away teammate.
+			std::cout
+				<< "Ignored remote input for non-client player ID: "
+				<< static_cast<int>(p.playerId)
+				<< " expected "
+				<< static_cast<int>(awayControlledId)
+				<< std::endl;
+			continue;
+		}
+
 		frameData.inputs[p.playerId] = p;
 		isHuman[p.playerId] = true;
 	}
@@ -897,7 +1110,14 @@ void HostPlayingState::render(GameEngine& engine)
 	/* Get current game state and render */
 	GameStatePacket currentState;
 	match.getGameState(currentState);
-	mRenderer.render(window, currentState);
+
+	const bool showGameOverOverlay =
+		!snapshotIsGameOver(currentState) ||
+		gameOverMenuDelayFinished(mGameOverMenuElapsedSec);
+
+	mRenderer.render(window, currentState, true, showGameOverOverlay);
+
+	if (snapshotIsGameOver(currentState)) return;
 
 	// SANTI 30/04/26
 	// Show connection instructions only while waiting for the client.
@@ -919,10 +1139,27 @@ void SinglePlayerPlayingState::tick(GameEngine& engine, float dt)
 {
 	auto& match = engine.getMatch();
 
+	GameStatePacket stateBeforeTick;
+	match.getGameState(stateBeforeTick);
+
+	if (snapshotIsGameOver(stateBeforeTick)) {
+		(void)updateDelayedGameOverMenu(
+			engine,
+			dt,
+			mGameOverMenuElapsedSec,
+			mGameOverMouseWasDown,
+			GameOverRetryTarget::SinglePlayer);
+		return;
+	}
+
+	resetGameOverMenuTracking(mGameOverMenuElapsedSec, mGameOverMouseWasDown);
+
 	/* Check for pause */
-	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
+	const bool pauseKeyDown = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape);
+	if (pauseKeyDown && !mPauseKeyWasDown) {
 		engine.pushState(std::make_unique<PauseMenuState>());
 	}
+	mPauseKeyWasDown = pauseKeyDown;
 
 	/* Build frame input */
 	// SANTI 28/04/2026: Singleplayer uses the same control policy as host play.
@@ -958,5 +1195,9 @@ void SinglePlayerPlayingState::render(GameEngine& engine)
 	// SANTI 30/04/26
 	// Single-player controls only the Home side. Hide the Away controlled-player
 	// marker so the player does not think the AI opponent is also user-controlled.
-	mRenderer.render(window, currentState, false);
+	const bool showGameOverOverlay =
+		!snapshotIsGameOver(currentState) ||
+		gameOverMenuDelayFinished(mGameOverMenuElapsedSec);
+
+	mRenderer.render(window, currentState, false, showGameOverOverlay);
 }

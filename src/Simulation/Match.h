@@ -41,6 +41,16 @@ public:
 
 	~Match() = default;
 
+	/**
+	 * @brief Reset all match-owned gameplay data and return to kickoff.
+	 *
+	 * SANTI 01/05/2026:
+	 * This is used when leaving a match through pause/game-over menus. GameEngine
+	 * owns one Match object for the program lifetime, so selecting a new play
+	 * mode must explicitly clear the old score, timer, World, and MatchState.
+	 */
+	void reset();
+
 	/* Pass data from gameEngine all the way down the pipeline, delegate to state class */
 	// SANTI: dt is required for matchTimerSec.
 	/**

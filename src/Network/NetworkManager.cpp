@@ -3,6 +3,21 @@
 #include <queue>
 
 // ----------------------------------------------------------------------------
+// STOP NETWORK SESSION
+// ----------------------------------------------------------------------------
+void NetworkManager::stop()
+{
+	// SANTI 01/05/2026
+	// SFML UDP has no "disconnect" for this design because we use datagrams.
+	// Ending the session means unbinding the socket and clearing the remembered
+	// local/remote endpoints so future modes start from a clean network state.
+	mSocket.unbind();
+	mLocalPort = 0;
+	mRemoteAddress = sf::IpAddress::Any;
+	mRemotePort = 0;
+}
+
+// ----------------------------------------------------------------------------
 // HOST MODE: bind to a fixed port
 // ----------------------------------------------------------------------------
 void NetworkManager::startHost(uint16 localPort)

@@ -13,7 +13,7 @@
  * goalkeeper behavior, cow chaos events, networking, and packet-safe gameplay."
  */
 
-// SANTI: Fixed includes.
+ // SANTI: Fixed includes.
 #include <SFML/System/Vector2.hpp>
 #include <SFML/Window/Keyboard.hpp>
 
@@ -288,6 +288,11 @@ namespace Config {
 	constexpr float MATCH_DURATION_SECONDS = 180.f;
 	constexpr int WIN_GOAL_LIMIT = 5;
 	constexpr float GOAL_REPLAY_DURATION_SECONDS = 1.2f;
+	// SANTI 01/05/2026
+	// Delay before the full Game Over menu appears. The match can enter
+	// GameOver immediately, but this gives the player one second to see the
+	// final field state before the large overlay/buttons cover the screen.
+	constexpr float GAME_OVER_MENU_DELAY_SECONDS = 1.0f;
 
 	constexpr unsigned int SCORE_TEXT_SIZE = 24;
 	constexpr float SCORE_TEXT_X = 10.f;

@@ -215,6 +215,12 @@ private:
 	// using mLatestState.controlledAwayPlayerId so defensive switching works.
 	bool mHaveState = false;
 	bool mPauseKeyWasDown = false;
+
+	// SANTI 01/05/2026
+	// Client-side UI timing for the Game Over overlay. The host decides when
+	// the match is over; client only delays the local menu art/buttons.
+	float mGameOverMenuElapsedSec = 0.f;
+	bool mGameOverMouseWasDown = false;
 };
 
 /**
@@ -233,6 +239,13 @@ private:
 	AIController mAiController;
 	std::uint8_t mMyPlayerID = 0;
 	Renderer mRenderer;
+
+	// SANTI 01/05/2026
+	// Local UI timer so the final field state remains visible briefly before
+	// Game Over buttons cover the screen.
+	float mGameOverMenuElapsedSec = 0.f;
+	bool mGameOverMouseWasDown = false;
+	bool mPauseKeyWasDown = false;
 };
 
 /**
@@ -248,4 +261,10 @@ private:
 	AIController mAiController;
 	std::uint8_t mMyPlayerID = 0;
 	Renderer mRenderer;
+
+	// SANTI 01/05/2026
+	// Single-player uses the same delayed Game Over UI behavior as host mode.
+	float mGameOverMenuElapsedSec = 0.f;
+	bool mGameOverMouseWasDown = false;
+	bool mPauseKeyWasDown = false;
 };

@@ -77,7 +77,30 @@ namespace {
 
 Match::Match() {
 	// Start in Kickoff by default.
+	reset();
+}
+
+void Match::reset() {
+	// SANTI 01/05/2026
+	// GameEngine keeps the same Match object while menus/states change, so a
+	// new play mode must explicitly clear every piece of match-owned state.
+	// This prevents old scores, timers, cows, possession, and MatchState objects
+	// from leaking into the next match after exiting to the main menu.
 	mWorld = World();
+	mHomeScore = 0;
+	mAwayScore = 0;
+	mMatchTimerSec = 0.f;
+	mFrameNumber = 0;
+	mIsOverTime = false;
+	mPossessingTeamId = -1;
+	mControlledHomePlayerId = 0;
+	mControlledAwayPlayerId = 4;
+	mWasHomeSwitchDown = false;
+	mWasAwaySwitchDown = false;
+	mHomeDefenseSecondClosest = false;
+	mAwayDefenseSecondClosest = false;
+	mKickoffTeamSide = Config::HOME_TEAM_SIDE;
+	mCurrentState.reset();
 	TransitionTo(std::make_unique<KickoffState>());
 }
 
