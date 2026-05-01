@@ -25,6 +25,9 @@
 #include <sstream>
 
 namespace {
+	//Brian 30/04/26
+	// to render game over screen
+
 	// SANTI 30/04/26
 	// Loads the HUD font once and reuses it for every frame.
 	// Returns nullptr if the font is missing so HUD rendering can fail safely.
@@ -938,7 +941,50 @@ Renderer::Renderer() {
 	if (mBallTexture.loadFromFile("assets/textures/Ball_Icons.png")) {
 		mBallSprite.emplace(mBallTexture);
 		mControlledPlayerIndicatorSprite.emplace(mBallTexture);
+
 	}
+	// brian added stuff to render game over scren --------------------------------------------------------
+	if (mGameOverPanelTex.loadFromFile("assets/UI/sfml_ui_assets/background_settings.png")) {
+    mGameOverPanelSprite.emplace(mGameOverPanelTex);
+
+    float scaleX = 800.f / mGameOverPanelTex.getSize().x;
+    float scaleY = 600.f / mGameOverPanelTex.getSize().y;
+
+    mGameOverPanelSprite->setScale({ scaleX, scaleY });
+	mGameOverPanelSprite->setPosition({ 0.f, 0.f }); // cleaner
+}
+
+	if (mGameOverTextTex.loadFromFile("assets/UI/GameOver.png")) {
+		mGameOverTextSprite.emplace(mGameOverTextTex);
+
+		mGameOverTextSprite->setScale({ 0.42f, 0.42f }); 
+
+		mGameOverTextSprite->setPosition({
+			Config::WINDOW_WIDTH / 2.f - (mGameOverTextTex.getSize().x * 0.42f) / 2.f,
+			30.f
+			});
+	}
+
+	if (mTryAgainTex.loadFromFile("assets/UI/TryAgain.png")) {
+		mTryAgainSprite.emplace(mTryAgainTex);
+
+		mTryAgainSprite->setScale({ 0.42f, 0.42f });
+		mTryAgainSprite->setPosition({
+			Config::WINDOW_WIDTH / 2.f - (mTryAgainTex.getSize().x * 0.42f) / 2.f,
+			340.f
+			});
+	}
+
+	if (mQuitTex.loadFromFile("assets/UI/QuitB.png")) {
+		mQuitSprite.emplace(mQuitTex);
+
+		mQuitSprite->setScale({ 0.15f, 0.15f });
+		mQuitSprite->setPosition({
+			Config::WINDOW_WIDTH / 2.f - (mQuitTex.getSize().x * 0.45f) / 2.f,
+			380.f
+			});
+	}
+
 }
 
 void Renderer::render(
@@ -1051,6 +1097,12 @@ void Renderer::render(
 	// C. Draw HUD
 	window.setView(window.getDefaultView());
 	renderHUD(window, (int)gameState.scoreHome, (int)gameState.scoreAway, gameState.matchTimerSec, (int)gameState.currentState);
+	if (gameState.currentState == 3) {
+		if (mGameOverPanelSprite) window.draw(*mGameOverPanelSprite);
+		if (mGameOverTextSprite) window.draw(*mGameOverTextSprite);
+		if (mTryAgainSprite) window.draw(*mTryAgainSprite);
+		if (mQuitSprite) window.draw(*mQuitSprite);
+	}
 }
 
 void Renderer::renderHUD(

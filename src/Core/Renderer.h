@@ -23,15 +23,15 @@
 #include <optional>
 #include <array>
 
-/**
- * @class Renderer
- * @brief Draws the current authoritative game snapshot.
- *
- * Renderer intentionally does not own or modify World, Match, NetworkManager,
- * or InputHandler. It only displays the snapshot it receives.
- *
- * Credit: Ryan contributed the initial player sprite rendering approach.
- */
+ /**
+  * @class Renderer
+  * @brief Draws the current authoritative game snapshot.
+  *
+  * Renderer intentionally does not own or modify World, Match, NetworkManager,
+  * or InputHandler. It only displays the snapshot it receives.
+  *
+  * Credit: Ryan contributed the initial player sprite rendering approach.
+  */
 class Renderer {
 public:
     Renderer();
@@ -112,4 +112,15 @@ private:
     const float ANIM_SPEED = 0.15f;
     const int FRAME_WIDTH = 24;
     const int FRAME_HEIGHT = 24;
+    sf::Texture mGameOverPanelTex;
+    std::optional<sf::Sprite> mGameOverPanelSprite;
+
+    sf::Texture mGameOverTextTex;
+    std::optional<sf::Sprite> mGameOverTextSprite;
+
+    sf::Texture mTryAgainTex;
+    std::optional<sf::Sprite> mTryAgainSprite;
+
+    sf::Texture mQuitTex;
+    std::optional<sf::Sprite> mQuitSprite;
 };
