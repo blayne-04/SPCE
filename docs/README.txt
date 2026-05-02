@@ -11,7 +11,7 @@ INSTALLATION
    - SFML 3.1 (fetched automatically)
 
 2. Clone and build:
-   git clone https://github.com/blayne-04/SPCE.git
+   git clone https://github.com/santiago-pelaez/SuperCopaPeruEvolution.git
    cd SPCE
    cmake -S . -B build
    cmake --build build
@@ -38,10 +38,10 @@ Controls:
 TEAM MEMBERS & LAB SECTIONS
 ----------------------------------------------------------------------
 - Blayne Fuller        – Lab Section 4
-- Brian Reano Juarez   – Lab Section 
+- Brian Reano Juarez   – Lab Section 2
 - Ryan Von Bereghy     – Lab Section 4
 - Santiago Pelaez      – Lab Section 4
 
 VIDEO DEMO
 ----------------------------------------------------------------------
-Link: https://youtu.be/your-video-link-here
+Link: https://youtu.be/nGwHgpjp_OY
